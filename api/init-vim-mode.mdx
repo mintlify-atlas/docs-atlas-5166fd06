@@ -1,0 +1,162 @@
+---
+title: "initVimMode"
+description: "Initialize Vim mode on a Monaco Editor instance"
+---
+
+## Overview
+
+The `initVimMode` function is the main entry point for enabling Vim keybindings in Monaco Editor. It creates and configures a VimMode adapter instance with optional status bar integration.
+
+## Signature
+
+```typescript
+function initVimMode(
+  editor: monaco.editor.IStandaloneCodeEditor,
+  statusbarNode?: HTMLElement | null,
+  StatusBarClass?: StatusBarCtor,
+  sanitizer?: Sanitizer
+): VimAdapterInstance
+```
+
+## Parameters
+
+<ParamField path="editor" type="monaco.editor.IStandaloneCodeEditor" required>
+  The Monaco Editor instance to enable Vim mode on. Must be a standalone code editor instance.
+</ParamField>
+
+<ParamField path="statusbarNode" type="HTMLElement | null" default="null">
+  Optional DOM element to render the Vim status bar. If `null`, the Vim adapter will initialize without a status bar display.
+</ParamField>
+
+<ParamField path="StatusBarClass" type="StatusBarCtor" default="StatusBar">
+  Optional custom StatusBar class constructor. Defaults to the built-in `StatusBar` class.
+  
+  The constructor signature is:
+  ```typescript
+  new (node: HTMLElement, editor: monaco.editor.IStandaloneCodeEditor, sanitizer?: Sanitizer) => StatusBar
+  ```
+</ParamField>
+
+<ParamField path="sanitizer" type="((node: Node) => Node) | null" default="null">
+  Optional HTML sanitizer function for the status bar. Used to sanitize user input displayed in the status bar (such as Ex commands).
+</ParamField>
+
+## Return Value
+
+<ResponseField name="VimAdapterInstance" type="InstanceType<typeof VimMode>">
+  Returns a VimMode instance that provides methods to control and interact with Vim mode.
+</ResponseField>
+
+## Behavior
+
+When `statusbarNode` is provided, `initVimMode` automatically:
+
+1. Creates a status bar instance
+2. Connects Vim mode events to status bar updates:
+   - `vim-mode-change`: Updates the mode display (NORMAL, INSERT, VISUAL, etc.)
+   - `vim-keypress`: Displays key buffer for multi-key commands
+   - `vim-command-done`: Clears the key buffer
+   - `dispose`: Hides the status bar and cleans up
+3. Calls `vimAdapter.attach()` to activate Vim mode
+
+When `statusbarNode` is `null`, only the Vim adapter is created and attached without UI integration.
+
+## Examples
+
+### Basic Usage
+
+```typescript
+import * as monaco from 'monaco-editor';
+import { initVimMode } from 'monaco-vim';
+
+const editor = monaco.editor.create(document.getElementById('editor'), {
+  value: 'Hello, Vim!',
+  language: 'javascript'
+});
+
+const vimMode = initVimMode(editor);
+```
+
+### With Status Bar
+
+```typescript
+import * as monaco from 'monaco-editor';
+import { initVimMode } from 'monaco-vim';
+
+const editor = monaco.editor.create(document.getElementById('editor'), {
+  value: 'Hello, Vim!',
+  language: 'javascript'
+});
+
+const statusBarNode = document.getElementById('vim-statusbar');
+const vimMode = initVimMode(editor, statusBarNode);
+```
+
+### With Custom Status Bar Class
+
+```typescript
+import * as monaco from 'monaco-editor';
+import { initVimMode, StatusBar } from 'monaco-vim';
+
+class CustomStatusBar extends StatusBar {
+  setMode(ev) {
+    super.setMode(ev);
+    // Custom mode display logic
+    console.log('Mode changed to:', ev.mode);
+  }
+}
+
+const editor = monaco.editor.create(document.getElementById('editor'), {
+  value: 'Hello, Vim!',
+  language: 'javascript'
+});
+
+const statusBarNode = document.getElementById('vim-statusbar');
+const vimMode = initVimMode(editor, statusBarNode, CustomStatusBar);
+```
+
+### With HTML Sanitizer
+
+```typescript
+import * as monaco from 'monaco-editor';
+import { initVimMode } from 'monaco-vim';
+import DOMPurify from 'dompurify';
+
+const editor = monaco.editor.create(document.getElementById('editor'), {
+  value: 'Hello, Vim!',
+  language: 'javascript'
+});
+
+const statusBarNode = document.getElementById('vim-statusbar');
+const sanitizer = (node) => DOMPurify.sanitize(node, { RETURN_DOM: true });
+
+const vimMode = initVimMode(editor, statusBarNode, undefined, sanitizer);
+```
+
+### Disposing Vim Mode
+
+```typescript
+const vimMode = initVimMode(editor, statusBarNode);
+
+// Later, when you want to disable Vim mode
+vimMode.dispose();
+```
+
+## Type Definitions
+
+```typescript
+type Sanitizer = ((node: Node) => Node) | null;
+
+type StatusBarCtor = new (
+  node: HTMLElement,
+  editor: monaco.editor.IStandaloneCodeEditor,
+  sanitizer?: Sanitizer,
+) => StatusBar;
+
+export type VimAdapterInstance = InstanceType<typeof VimMode>;
+```
+
+## See Also
+
+- [VimMode](/api/vim-mode) - Methods and events available on the returned instance
+- [StatusBar](/api/status-bar) - Status bar class and customization options

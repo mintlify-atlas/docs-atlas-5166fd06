@@ -1,0 +1,148 @@
+---
+title: Installation
+description: Install monaco-vim in your project using npm, yarn, or pnpm
+---
+
+# Installation
+
+monaco-vim can be installed via npm and used with modern JavaScript bundlers or AMD module loading.
+
+## Prerequisites
+
+<Note>
+**monaco-vim requires Monaco Editor as a peer dependency.**
+
+Make sure you have Monaco Editor installed in your project before installing monaco-vim.
+</Note>
+
+```bash
+# Install Monaco Editor if you haven't already
+npm install monaco-editor
+```
+
+## Package Manager Installation
+
+Install monaco-vim using your preferred package manager:
+
+<CodeGroup>
+```bash npm
+npm install monaco-vim
+```
+
+```bash yarn
+yarn add monaco-vim
+```
+
+```bash pnpm
+pnpm add monaco-vim
+```
+</CodeGroup>
+
+## Bundler Setup
+
+### Webpack / Vite / Browserify
+
+monaco-vim works seamlessly with modern bundlers. After installation, simply import it in your code:
+
+```javascript
+import * as monaco from 'monaco-editor';
+import { initVimMode } from 'monaco-vim';
+
+// Your editor setup code
+const editor = monaco.editor.create(...);
+const vimMode = initVimMode(editor, statusbarNode);
+```
+
+<Info>
+monaco-vim uses internal Monaco Editor dependencies that are not exposed in the public API. This is why bundler support is required.
+</Info>
+
+### AMD / RequireJS
+
+If you're using Monaco's AMD loader (the official integration method), you can load monaco-vim like this:
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+  </head>
+  <body>
+    <div id="container" style="width:800px;height:600px;border:1px solid grey"></div>
+    <div id="status"></div>
+
+    <script src="https://unpkg.com/monaco-editor/min/vs/loader.js"></script>
+    <script>
+      require.config({
+        paths: {
+          vs: "https://unpkg.com/monaco-editor/min/vs",
+          "monaco-vim": "https://unpkg.com/monaco-vim@0.4.2/dist/monaco-vim.js",
+        },
+      });
+      require(["vs/editor/editor.main", "monaco-vim"], function (a, MonacoVim) {
+        var editor = monaco.editor.create(
+          document.getElementById("container"),
+          {
+            value: 'console.log("Hello, Vim!");',
+            language: "javascript",
+          }
+        );
+        var statusNode = document.getElementById("status");
+        var vimMode = MonacoVim.initVimMode(editor, statusNode);
+      });
+    </script>
+  </body>
+</html>
+```
+
+<Warning>
+**Global Script Loading Not Supported**
+
+monaco-vim cannot be loaded as a global script tag without a module loader. This is due to its dependency on internal Monaco Editor modules. You must use:
+- A bundler (webpack, Vite, browserify), or
+- AMD/RequireJS with Monaco's loader.js
+</Warning>
+
+## Package Exports
+
+monaco-vim provides multiple export formats to support different module systems:
+
+```json
+{
+  "main": "./dist/index.cjs",      // CommonJS
+  "module": "./dist/index.mjs",    // ES Module
+  "types": "./dist/index.d.cts",   // TypeScript definitions
+  "browser": "./dist/monaco-vim.umd.js"  // UMD for browsers
+}
+```
+
+## TypeScript Support
+
+monaco-vim includes TypeScript definitions out of the box:
+
+```typescript
+import type * as MonacoEditor from 'monaco-editor';
+import { initVimMode, VimMode, VimAdapterInstance } from 'monaco-vim';
+
+const editor: MonacoEditor.editor.IStandaloneCodeEditor = monaco.editor.create(...);
+const vimMode: VimAdapterInstance = initVimMode(editor, statusbarNode);
+```
+
+## Version Compatibility
+
+<Info>
+monaco-vim version 0.4.4 is compatible with Monaco Editor 0.33.0 and above. Check the [changelog](https://github.com/brijeshb42/monaco-vim/releases) for version-specific compatibility information.
+</Info>
+
+## Next Steps
+
+Now that you have monaco-vim installed, head over to the [Quickstart Guide](/quickstart) to learn how to initialize and use Vim mode in your editor.
+
+<Card
+  title="Quickstart Guide"
+  icon="rocket"
+  href="/quickstart"
+>
+  Learn how to set up and use monaco-vim with a complete working example
+</Card>

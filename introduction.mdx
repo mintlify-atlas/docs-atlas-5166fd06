@@ -1,0 +1,127 @@
+---
+title: Introduction
+description: Add powerful Vim keybindings to Monaco Editor with monaco-vim
+---
+
+# Welcome to monaco-vim
+
+monaco-vim brings the power and efficiency of Vim keybindings to Monaco Editor, the code editor that powers VS Code. Built on CodeMirror's robust Vim implementation, it provides an authentic Vim experience within your Monaco-based applications.
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get up and running with monaco-vim in minutes
+  </Card>
+  <Card
+    title="API Reference"
+    icon="code"
+    href="/api/init-vim-mode"
+  >
+    Explore the complete API documentation
+  </Card>
+  <Card
+    title="Installation"
+    icon="download"
+    href="/installation"
+  >
+    Learn about installation options and requirements
+  </Card>
+  <Card
+    title="Live Demo"
+    icon="arrow-up-right-from-square"
+    href="https://editor-a5ea1.web.app/"
+  >
+    Try monaco-vim in your browser
+  </Card>
+</CardGroup>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card icon="keyboard">
+    **Full Vim Keybindings**
+    
+    Complete Vim modal editing with normal, insert, visual, and command modes
+  </Card>
+  <Card icon="terminal">
+    **Ex Commands**
+    
+    Support for Ex mode commands with customizable command definitions
+  </Card>
+  <Card icon="display">
+    **Status Bar Integration**
+    
+    Real-time status display showing current mode and key buffer
+  </Card>
+  <Card icon="plug">
+    **Easy Integration**
+    
+    Simple API with just a few lines of code to enable Vim mode
+  </Card>
+  <Card icon="sliders">
+    **Customizable**
+    
+    Define custom Ex commands and key bindings to suit your workflow
+  </Card>
+  <Card icon="shield">
+    **Event Handling**
+    
+    Flexible key event handling with preventDefault support
+  </Card>
+</CardGroup>
+
+## Why monaco-vim?
+
+If you're building a web-based code editor using Monaco Editor and your users love Vim, monaco-vim is the perfect solution:
+
+- **Familiar Editing**: Users can leverage their existing Vim muscle memory
+- **Productivity Boost**: Vim's modal editing provides efficient text manipulation
+- **Battle-Tested**: Built on CodeMirror's mature Vim implementation
+- **Active Maintenance**: Regularly updated to work with latest Monaco Editor versions
+- **Lightweight**: Minimal overhead while providing comprehensive Vim functionality
+
+<Note>
+monaco-vim requires Monaco Editor as a peer dependency. It works with modern bundlers (webpack, browserify, Vite) and AMD module loading.
+</Note>
+
+## How It Works
+
+monaco-vim acts as a bridge between CodeMirror's Vim keybindings and Monaco Editor's API. When you initialize Vim mode:
+
+1. The adapter attaches to your Monaco Editor instance
+2. All keyboard input is intercepted and processed through Vim's state machine
+3. Commands are translated into Monaco Editor operations
+4. The status bar displays real-time feedback on mode and key presses
+
+<Info>
+The implementation is based on CodeMirror's `keymap_vim.js`, ensuring authentic Vim behavior and compatibility.
+</Info>
+
+## What's Next?
+
+<Steps>
+  <Step title="Install monaco-vim">
+    Follow the [installation guide](/installation) to add monaco-vim to your project
+  </Step>
+  <Step title="Initialize Vim Mode">
+    Check out the [quickstart guide](/quickstart) for a complete working example
+  </Step>
+  <Step title="Customize">
+    Explore the [API reference](/api/init-vim-mode) to customize behavior and add commands
+  </Step>
+</Steps>
+
+## Browser Compatibility
+
+monaco-vim works in all modern browsers that support Monaco Editor. It requires ES2015+ features and works best with:
+
+- Chrome/Edge 90+
+- Firefox 88+
+- Safari 14+
+
+<Warning>
+Global script inclusion is not supported due to internal Monaco Editor dependencies. You must use a bundler (webpack, Vite, etc.) or AMD module loading.
+</Warning>

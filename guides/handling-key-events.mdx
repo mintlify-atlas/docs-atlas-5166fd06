@@ -1,0 +1,471 @@
+---
+title: Handling Key Events
+description: Intercept keyboard events before vim mode processes them using preventDefault
+---
+
+## Overview
+
+By default, monaco-vim intercepts all keyboard events to provide vim keybindings. However, you may want certain key combinations to be handled by your application instead. monaco-vim respects events that have been prevented by earlier handlers.
+
+## The preventDefault Pattern
+
+monaco-vim checks if an event has been prevented before processing it. This allows you to handle specific keys in your application while letting vim mode handle everything else.
+
+### How It Works
+
+The key handler in monaco-vim checks for prevented events:
+
+```typescript src/cm_adapter.ts:376-385
+handleKeyDown = (e) => {
+  // Allow previously registered keydown listeners to handle the event and
+  // prevent this extension from also handling it.
+  if (e.browserEvent.defaultPrevented & (e.keyCode !== KeyCode.Escape)) {
+    return;
+  }
+
+  if (!this.attached) {
+    return;
+  }
+```
+
+If `e.browserEvent.defaultPrevented` is `true`, monaco-vim will ignore the event (except for Escape key).
+
+<Info>
+  Available from v0.0.14 onwards. Make sure you're using a compatible version.
+</Info>
+
+## Basic Usage
+
+### Register Handler Before Vim Mode
+
+The key is to register your `onKeyDown` handler **before** initializing vim mode:
+
+```javascript
+import * as monaco from "monaco-editor";
+import { initVimMode } from "monaco-vim";
+
+const editor = monaco.editor.create(document.getElementById("container"), {
+  value: "console.log('Hello');",
+  language: "javascript"
+});
+
+// Add your handler FIRST
+editor.onKeyDown((e) => {
+  // Handle Ctrl+Enter to run code
+  if (e.keyCode === monaco.KeyCode.Enter && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    runCode();
+  }
+});
+
+// Then initialize vim mode
+const vimMode = initVimMode(editor, statusNode);
+
+function runCode() {
+  const code = editor.getValue();
+  console.log("Running:", code);
+  // Execute the code...
+}
+```
+
+<Warning>
+  Order matters! Register your `onKeyDown` handler before calling `initVimMode()`, otherwise vim mode will process the key first.
+</Warning>
+
+## Common Use Cases
+
+### Run Code with Ctrl/Cmd+Enter
+
+A common pattern is to run code when pressing Ctrl+Enter (Cmd+Enter on Mac):
+
+```javascript
+editor.onKeyDown((e) => {
+  const isModEnter = e.keyCode === monaco.KeyCode.Enter && (e.ctrlKey || e.metaKey);
+  
+  if (isModEnter) {
+    e.preventDefault();
+    
+    // Run the code
+    const code = editor.getValue();
+    executeCode(code);
+  }
+});
+
+const vimMode = initVimMode(editor, statusNode);
+```
+
+### Save with Ctrl+S
+
+Prevent the browser's save dialog and implement custom save:
+
+```javascript
+editor.onKeyDown((e) => {
+  const isCtrlS = e.keyCode === monaco.KeyCode.KeyS && (e.ctrlKey || e.metaKey);
+  
+  if (isCtrlS) {
+    e.preventDefault();
+    
+    // Custom save logic
+    const content = editor.getValue();
+    saveFile(content);
+  }
+});
+
+const vimMode = initVimMode(editor, statusNode);
+
+function saveFile(content) {
+  localStorage.setItem("file", content);
+  console.log("File saved!");
+}
+```
+
+<Note>
+  You can also implement save functionality using Ex commands with `:w`. See the [Ex Commands guide](/guides/ex-commands) for details.
+</Note>
+
+### Format Document
+
+Trigger formatting with a custom key combination:
+
+```javascript
+editor.onKeyDown((e) => {
+  // Shift+Alt+F for formatting
+  const isFormatKey = 
+    e.keyCode === monaco.KeyCode.KeyF && 
+    e.shiftKey && 
+    e.altKey;
+  
+  if (isFormatKey) {
+    e.preventDefault();
+    editor.getAction("editor.action.formatDocument").run();
+  }
+});
+
+const vimMode = initVimMode(editor, statusNode);
+```
+
+### Open Command Palette
+
+```javascript
+editor.onKeyDown((e) => {
+  // Ctrl+Shift+P for command palette
+  const isCommandPalette = 
+    e.keyCode === monaco.KeyCode.KeyP && 
+    e.ctrlKey && 
+    e.shiftKey;
+  
+  if (isCommandPalette) {
+    e.preventDefault();
+    editor.trigger("keyboard", "editor.action.quickCommand");
+  }
+});
+
+const vimMode = initVimMode(editor, statusNode);
+```
+
+## Multiple Key Handlers
+
+You can register multiple handlers for different functionalities:
+
+```javascript
+import * as monaco from "monaco-editor";
+import { initVimMode } from "monaco-vim";
+
+const editor = monaco.editor.create(/* ... */);
+
+// Handler 1: Run code
+editor.onKeyDown((e) => {
+  if (e.keyCode === monaco.KeyCode.Enter && e.ctrlKey) {
+    e.preventDefault();
+    runCode();
+  }
+});
+
+// Handler 2: Save file
+editor.onKeyDown((e) => {
+  if (e.keyCode === monaco.KeyCode.KeyS && e.ctrlKey) {
+    e.preventDefault();
+    saveFile();
+  }
+});
+
+// Handler 3: Custom search
+editor.onKeyDown((e) => {
+  if (e.keyCode === monaco.KeyCode.KeyF && e.ctrlKey && e.shiftKey) {
+    e.preventDefault();
+    openCustomSearch();
+  }
+});
+
+// Initialize vim mode last
+const vimMode = initVimMode(editor, statusNode);
+```
+
+## Key Codes Reference
+
+Monaco provides key codes through `monaco.KeyCode`:
+
+<CodeGroup>
+```javascript Letters
+monaco.KeyCode.KeyA  // A
+monaco.KeyCode.KeyB  // B
+// ... through ...
+monaco.KeyCode.KeyZ  // Z
+```
+
+```javascript Modifiers
+e.ctrlKey   // Ctrl (Windows/Linux) or Command (Mac)
+e.metaKey   // Command (Mac) or Windows key
+e.altKey    // Alt/Option
+e.shiftKey  // Shift
+```
+
+```javascript Special Keys
+monaco.KeyCode.Enter
+monaco.KeyCode.Escape
+monaco.KeyCode.Space
+monaco.KeyCode.Tab
+monaco.KeyCode.Backspace
+monaco.KeyCode.Delete
+```
+
+```javascript Function Keys
+monaco.KeyCode.F1
+monaco.KeyCode.F2
+// ... through ...
+monaco.KeyCode.F12
+```
+</CodeGroup>
+
+## Complete Example
+
+Here's a full example with multiple custom key handlers:
+
+```javascript
+import * as monaco from "monaco-editor";
+import { initVimMode } from "monaco-vim";
+
+// Create editor
+const editor = monaco.editor.create(document.getElementById("editor"), {
+  value: [
+    "function greet(name) {",
+    '  console.log("Hello, " + name);',
+    "}",
+    "",
+    'greet("World");'
+  ].join("\n"),
+  language: "javascript",
+  theme: "vs-dark"
+});
+
+// Custom key handlers (BEFORE vim mode)
+editor.onKeyDown((e) => {
+  // Ctrl/Cmd + Enter: Run code
+  if (e.keyCode === monaco.KeyCode.Enter && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    const code = editor.getValue();
+    console.log("Executing:", code);
+    try {
+      eval(code);
+    } catch (err) {
+      console.error("Error:", err);
+    }
+    return;
+  }
+  
+  // Ctrl/Cmd + S: Save
+  if (e.keyCode === monaco.KeyCode.KeyS && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    const content = editor.getValue();
+    localStorage.setItem("code", content);
+    console.log("✓ Saved to localStorage");
+    return;
+  }
+  
+  // Ctrl/Cmd + L: Load
+  if (e.keyCode === monaco.KeyCode.KeyL && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    const saved = localStorage.getItem("code");
+    if (saved) {
+      editor.setValue(saved);
+      console.log("✓ Loaded from localStorage");
+    }
+    return;
+  }
+  
+  // Shift + Alt + F: Format
+  if (e.keyCode === monaco.KeyCode.KeyF && e.shiftKey && e.altKey) {
+    e.preventDefault();
+    editor.getAction("editor.action.formatDocument").run();
+    return;
+  }
+});
+
+// Initialize vim mode AFTER key handlers
+const statusNode = document.getElementById("status");
+const vimMode = initVimMode(editor, statusNode);
+
+console.log("Editor ready! Try:");
+console.log("- Ctrl+Enter to run code");
+console.log("- Ctrl+S to save");
+console.log("- Ctrl+L to load");
+console.log("- Shift+Alt+F to format");
+console.log("- All vim keybindings (hjkl, dd, yy, etc.)");
+```
+
+## Platform-Specific Modifiers
+
+Handle Cmd on Mac and Ctrl on Windows/Linux:
+
+```javascript
+function isModKey(e) {
+  // On Mac, use metaKey (Cmd), on others use ctrlKey
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  return isMac ? e.metaKey : e.ctrlKey;
+}
+
+editor.onKeyDown((e) => {
+  if (e.keyCode === monaco.KeyCode.Enter && isModKey(e)) {
+    e.preventDefault();
+    runCode();
+  }
+});
+```
+
+Or use both for maximum compatibility:
+
+```javascript
+editor.onKeyDown((e) => {
+  // Accept either Ctrl or Cmd
+  if (e.keyCode === monaco.KeyCode.Enter && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    runCode();
+  }
+});
+```
+
+## Mode-Specific Handling
+
+You can check the vim mode state and conditionally prevent events:
+
+```javascript
+let currentVimMode = "normal";
+
+// Track vim mode changes
+editor.onKeyDown((e) => {
+  // Only handle Ctrl+Enter in insert mode
+  if (e.keyCode === monaco.KeyCode.Enter && e.ctrlKey) {
+    if (currentVimMode === "insert") {
+      e.preventDefault();
+      runCode();
+    }
+  }
+});
+
+const vimMode = initVimMode(editor, statusNode);
+
+// Track mode changes
+vimMode.on("vim-mode-change", (mode) => {
+  currentVimMode = mode.mode;
+});
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always call preventDefault()">
+    When handling a key, always call `preventDefault()` to prevent both vim mode and the browser from also handling it:
+    
+    ```javascript
+    editor.onKeyDown((e) => {
+      if (shouldHandle(e)) {
+        e.preventDefault();  // Important!
+        handleKey();
+      }
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Register handlers before vim mode">
+    Monaco editor processes event handlers in registration order. Register your handlers before calling `initVimMode()`:
+    
+    ```javascript
+    // ✓ Correct order
+    editor.onKeyDown(myHandler);
+    const vimMode = initVimMode(editor, statusNode);
+    
+    // ✗ Wrong order - vim will process first
+    const vimMode = initVimMode(editor, statusNode);
+    editor.onKeyDown(myHandler);
+    ```
+  </Accordion>
+  
+  <Accordion title="Use consistent modifier keys">
+    Stick to common conventions for modifier keys:
+    - Ctrl/Cmd+S for save
+    - Ctrl/Cmd+Enter for execute/run
+    - Shift+Alt+F for format
+    - Ctrl/Cmd+/ for comment toggle
+    
+    This makes your editor feel familiar to users.
+  </Accordion>
+  
+  <Accordion title="Document your custom keys">
+    Let users know what custom keys are available:
+    
+    ```javascript
+    // Add a help command
+    VimMode.Vim.defineEx("keys", "keys", function(cm) {
+      const help = [
+        "Custom Keys:",
+        "Ctrl+Enter - Run code",
+        "Ctrl+S - Save",
+        "Shift+Alt+F - Format"
+      ].join("\n");
+      cm.openNotification(help);
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Don't override essential vim keys">
+    Avoid preventing keys that are essential to vim operation unless you have a very good reason:
+    - Don't block i, a, o (insert mode entry)
+    - Don't block Esc (exit insert/visual mode)  
+    - Don't block hjkl (movement)
+    - Don't block d, y, p (delete, yank, paste)
+    
+    Users chose vim mode because they want vim keybindings!
+  </Accordion>
+</AccordionGroup>
+
+## Debugging Key Events
+
+To see what keys are being pressed:
+
+```javascript
+editor.onKeyDown((e) => {
+  console.log({
+    keyCode: e.keyCode,
+    key: monaco.KeyCode[e.keyCode],
+    ctrl: e.ctrlKey,
+    meta: e.metaKey,
+    alt: e.altKey,
+    shift: e.shiftKey,
+    prevented: e.browserEvent.defaultPrevented
+  });
+});
+```
+
+## Related Guides
+
+<CardGroup cols={2}>
+  <Card title="Custom Keybindings" icon="keyboard" href="/guides/custom-keybindings">
+    Add vim-style keybindings with VimMode.Vim.mapCommand
+  </Card>
+  <Card title="Ex Commands" icon="terminal" href="/guides/ex-commands">
+    Define custom Ex commands as an alternative to key handlers
+  </Card>
+  <Card title="Basic Usage" icon="circle-play" href="/guides/basic-usage">
+    Learn the fundamentals of monaco-vim
+  </Card>
+</CardGroup>

@@ -1,0 +1,355 @@
+---
+title: Contributing
+description: How to contribute to monaco-vim development
+---
+
+## Welcome Contributors!
+
+Thank you for your interest in contributing to monaco-vim! This project bridges CodeMirror's excellent Vim implementation with Monaco Editor, and we welcome contributions of all kinds.
+
+## Quick Links
+
+<CardGroup cols={2}>
+  <Card title="GitHub Repository" icon="github" href="https://github.com/brijeshb42/monaco-vim">
+    View the source code
+  </Card>
+  <Card title="Issues" icon="bug" href="https://github.com/brijeshb42/monaco-vim/issues">
+    Report bugs or request features
+  </Card>
+</CardGroup>
+
+## Development Setup
+
+### Prerequisites
+
+You'll need the following installed:
+
+- **Node.js** (v18 or higher recommended)
+- **pnpm** (v10.28.0 or compatible)
+
+If you don't have pnpm installed:
+
+```bash
+npm install -g pnpm
+```
+
+### Getting Started
+
+1. **Fork and clone the repository**
+
+```bash
+git clone https://github.com/YOUR_USERNAME/monaco-vim.git
+cd monaco-vim
+```
+
+2. **Install dependencies**
+
+```bash
+pnpm install
+```
+
+3. **Start the development server**
+
+```bash
+pnpm dev
+```
+
+This starts Vite dev server at `http://localhost:8080` with the demo application.
+
+<Info>
+The dev server supports hot module replacement (HMR), so changes to the source code will automatically reload in your browser.
+</Info>
+
+### Project Structure
+
+```
+monaco-vim/
+├── src/
+│   ├── index.ts          # Main API (initVimMode function)
+│   ├── demo.ts           # Demo application
+│   ├── statusbar.ts      # Status bar implementation
+│   ├── cm_adapter.ts     # Monaco-CodeMirror adapter layer
+│   └── cm/
+│       └── keymap_vim.ts # CodeMirror Vim implementation
+├── dist/                 # Built files (generated)
+├── package.json          # Dependencies and scripts
+└── README.md            # Documentation
+```
+
+## Building the Project
+
+### Development Build
+
+The dev server automatically rebuilds as you make changes:
+
+```bash
+pnpm dev
+```
+
+### Production Build
+
+Create optimized builds for distribution:
+
+```bash
+pnpm build
+```
+
+This:
+1. Cleans the `dist/` directory
+2. Runs `tsdown` to create CJS, ESM, and UMD bundles
+3. Generates TypeScript declaration files
+
+Output files:
+- `dist/index.cjs` - CommonJS bundle
+- `dist/index.mjs` - ES Module bundle  
+- `dist/monaco-vim.umd.js` - UMD bundle for AMD/browser
+- `dist/index.d.cts` and `dist/index.d.mts` - Type definitions
+
+### Type Checking
+
+Run TypeScript type checking without building:
+
+```bash
+pnpm typecheck
+```
+
+## Testing Your Changes
+
+### Manual Testing
+
+1. Start the dev server: `pnpm dev`
+2. Open `http://localhost:8080` in your browser
+3. Test Vim commands in the editor
+4. Check the status bar for mode/key display
+5. Test edge cases and different browsers
+
+### Testing the Demo
+
+The demo (`src/demo.ts`) creates two editor instances:
+
+```typescript
+// Available in browser console:
+window.editor   // Primary editor instance
+window.vimMode  // Primary vim mode instance
+window.editor2  // Secondary editor instance  
+window.vimMode2 // Secondary vim mode instance
+```
+
+You can interact with these in the browser console to test the API:
+
+```javascript
+// Test disposing vim mode
+vimMode.dispose();
+
+// Test re-initializing
+import { initVimMode } from './src/index';
+window.vimMode = initVimMode(window.editor, document.getElementById('status1'));
+```
+
+### Preview Production Build
+
+Test the production build locally:
+
+```bash
+pnpm build
+pnpm preview
+```
+
+## Making Changes
+
+### Code Style
+
+- Use TypeScript for all new code
+- Follow the existing code style (2-space indentation)
+- Add type annotations for public APIs
+- Keep functions focused and well-named
+
+### Commit Guidelines
+
+- Write clear, descriptive commit messages
+- Reference issue numbers when applicable
+- Keep commits focused on a single change
+
+Example:
+```bash
+git commit -m "Fix: Handle null statusbar node correctly (#123)"
+```
+
+## Submitting Pull Requests
+
+### Before Submitting
+
+<Accordion title="1. Test your changes thoroughly">
+- Run `pnpm typecheck` to ensure no TypeScript errors
+- Test in multiple browsers (Chrome, Firefox, Safari)
+- Verify the demo still works: `pnpm dev`
+- Test the production build: `pnpm build && pnpm preview`
+</Accordion>
+
+<Accordion title="2. Update documentation if needed">
+If your change affects the public API or user-facing behavior:
+
+- Update README.md
+- Add examples if introducing new features
+- Update type definitions if needed
+</Accordion>
+
+<Accordion title="3. Check for related issues">
+Search [existing issues](https://github.com/brijeshb42/monaco-vim/issues) to see if your change addresses a reported problem.
+</Accordion>
+
+### Creating the PR
+
+1. **Push your changes to your fork**
+
+```bash
+git push origin your-feature-branch
+```
+
+2. **Open a Pull Request** on GitHub
+
+3. **Fill out the PR description** with:
+   - What problem does this solve?
+   - How did you test it?
+   - Any breaking changes?
+   - Related issue numbers
+
+4. **Wait for review**
+   - Maintainers will review your PR
+   - Address any feedback
+   - Once approved, your PR will be merged!
+
+<Note>
+The project uses `prepublishOnly` to automatically build before publishing to npm, so you don't need to commit built files.
+</Note>
+
+## Reporting Issues
+
+Found a bug or have a feature request? [Create an issue](https://github.com/brijeshb42/monaco-vim/issues/new)!
+
+### Bug Reports
+
+Include:
+
+- **Clear description** of the problem
+- **Steps to reproduce**
+- **Expected behavior** vs. **actual behavior**
+- **Environment details**:
+  - monaco-vim version
+  - Monaco Editor version
+  - Browser and version
+  - Bundler (if applicable)
+
+**Example:**
+
+```markdown
+## Bug: Visual block mode not working with multi-line selections
+
+**To reproduce:**
+1. Enter visual block mode with Ctrl+V
+2. Move down 3 lines with j
+3. Press d to delete
+
+**Expected:** Delete block across 3 lines
+**Actual:** Only first line is deleted
+
+**Environment:**
+- monaco-vim: 0.4.4
+- monaco-editor: 0.33.0
+- Browser: Chrome 120
+- Bundler: Vite 7.0.0
+```
+
+### Feature Requests
+
+Describe:
+- What feature you'd like
+- Why it would be useful
+- How it might work (if you have ideas)
+- Vim behavior reference (if applicable)
+
+## Understanding the Codebase
+
+### Key Files
+
+<Accordion title="src/index.ts - Main API">
+Exports `initVimMode()` function and sets up the integration between Vim mode and status bar.
+
+```typescript
+export function initVimMode(
+  editor: MonacoEditor.editor.IStandaloneCodeEditor,
+  statusbarNode: HTMLElement | null = null,
+  StatusBarClass: StatusBarCtor = StatusBar,
+  sanitizer: Sanitizer = null,
+): VimAdapterInstance
+```
+</Accordion>
+
+<Accordion title="src/cm_adapter.ts - Monaco-CodeMirror Bridge">
+Adapts CodeMirror's Vim mode to work with Monaco Editor's API. This is where most of the integration magic happens.
+</Accordion>
+
+<Accordion title="src/cm/keymap_vim.ts - Vim Implementation">
+The actual Vim keybinding logic from CodeMirror. This file is large and contains the core Vim behavior.
+</Accordion>
+
+<Accordion title="src/statusbar.ts - Status Bar">
+Handles displaying the Vim mode, key buffer, and command input in the status bar element.
+</Accordion>
+
+### Architecture Overview
+
+```
+Monaco Editor Instance
+         ↓
+    initVimMode()
+         ↓
+   VimMode instance ← CodeMirror Vim (keymap_vim.ts)
+         ↓
+   CM Adapter Layer (cm_adapter.ts)
+         ↓
+   Monaco Editor API
+         +
+   Status Bar (statusbar.ts)
+```
+
+## Common Contribution Areas
+
+### Good First Issues
+
+- Documentation improvements
+- Bug fixes for specific key sequences
+- Additional demo examples
+- TypeScript type improvements
+
+### Advanced Contributions
+
+- Ex command implementation improvements
+- Search/replace edge cases
+- Visual mode enhancements  
+- Performance optimizations
+
+## Community
+
+- **Maintainer**: [Brijesh Bittu](https://github.com/brijeshb42)
+- **License**: MIT (see LICENSE file)
+- **CodeMirror License**: See LICENSE.codemirror.txt
+
+## Questions?
+
+If you have questions about contributing:
+
+1. Check the [FAQ](/faq)
+2. Look through [existing issues](https://github.com/brijeshb42/monaco-vim/issues)
+3. Open a new issue with your question
+
+Thank you for contributing to monaco-vim! 🎉
+
+<CardGroup cols={2}>
+  <Card title="View Source Code" icon="code" href="https://github.com/brijeshb42/monaco-vim">
+    Explore the repository
+  </Card>
+  <Card title="Report an Issue" icon="circle-exclamation" href="https://github.com/brijeshb42/monaco-vim/issues/new">
+    Found a bug? Let us know
+  </Card>
+</CardGroup>

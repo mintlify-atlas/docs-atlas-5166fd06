@@ -1,0 +1,163 @@
+---
+title: Webpack & Browserify
+description: Use monaco-vim with module bundlers like Webpack and Browserify
+---
+
+## Installation
+
+Install monaco-vim via npm for use with modern bundlers:
+
+```bash
+npm install monaco-vim
+```
+
+## Basic Usage
+
+<Steps>
+  <Step title="Import the package">
+    Import `initVimMode` from the monaco-vim package:
+
+    ```javascript
+    import { initVimMode } from "monaco-vim";
+    ```
+  </Step>
+
+  <Step title="Initialize Vim mode">
+    Call `initVimMode` with your Monaco editor instance and a statusbar node:
+
+    ```javascript
+    const vimMode = initVimMode(editor, document.getElementById("my-statusbar"));
+    ```
+
+    The first argument is your initialized Monaco editor instance, and the second argument is the DOM node where you want to display VIM status information.
+  </Step>
+
+  <Step title="Dispose when done (optional)">
+    To remove the VIM bindings, call:
+
+    ```javascript
+    vimMode.dispose();
+    ```
+  </Step>
+</Steps>
+
+## Complete Example
+
+Here's a full example with Monaco Editor and Webpack:
+
+```javascript
+import * as monaco from "monaco-editor";
+import { initVimMode } from "monaco-vim";
+
+// Create the editor
+const editor = monaco.editor.create(document.getElementById("container"), {
+  value: `function hello() {
+  console.log("Hello world!");
+}`,
+  language: "javascript",
+  minimap: { enabled: false },
+  theme: "vs-dark"
+});
+
+// Initialize Vim mode
+const statusNode = document.getElementById("statusbar");
+const vimMode = initVimMode(editor, statusNode);
+
+// Later, to remove Vim mode:
+// vimMode.dispose();
+```
+
+## TypeScript Support
+
+monaco-vim includes full TypeScript type definitions. See the [TypeScript guide](/integration/typescript) for details on importing types.
+
+## Bundler Configuration
+
+<Tabs>
+  <Tab title="Webpack">
+    monaco-vim works out of the box with Webpack. If you're using Monaco Editor with Webpack, consider using the [monaco-editor-webpack-plugin](https://github.com/microsoft/monaco-editor/tree/main/webpack-plugin) for optimal setup:
+
+    ```javascript
+    const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
+
+    module.exports = {
+      plugins: [
+        new MonacoWebpackPlugin({
+          languages: ['javascript', 'typescript', 'css', 'html', 'json']
+        })
+      ]
+    };
+    ```
+  </Tab>
+
+  <Tab title="Vite">
+    For Vite projects, use the `vite-plugin-monaco-editor` plugin:
+
+    ```javascript
+    import { defineConfig } from "vite";
+    import monacoEditorPlugin from "vite-plugin-monaco-editor";
+
+    export default defineConfig({
+      plugins: [
+        monacoEditorPlugin({
+          languageWorkers: [
+            "editorWorkerService",
+            "css",
+            "html",
+            "json",
+            "typescript",
+          ],
+        }),
+      ],
+    });
+    ```
+  </Tab>
+
+  <Tab title="Browserify">
+    monaco-vim is compatible with Browserify. No special configuration is required:
+
+    ```bash
+    browserify main.js -o bundle.js
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  **Global Script Loading Not Supported**
+  
+  This package requires a module bundler (Webpack, Browserify, etc.) or AMD loader. Including monaco-vim globally via a `<script>` tag is not possible due to internal dependencies on monaco-editor that are not exposed in the global API.
+  
+  If you need to load Monaco Editor globally, use the [AMD loader approach](/integration/amd-loader) instead.
+</Warning>
+
+## Handling Key Presses
+
+If you want certain keypresses to bypass monaco-vim, add your `onKeyDown` handler **before** initializing monaco-vim and call `preventDefault()` on the event:
+
+```javascript
+editor.onKeyDown((event) => {
+  // Handle CMD/CTRL+Enter to run code
+  if ((event.metaKey || event.ctrlKey) && event.keyCode === monaco.KeyCode.Enter) {
+    event.preventDefault(); // monaco-vim will ignore this event
+    runCode();
+  }
+});
+
+// Initialize vim mode after setting up key handlers
+const vimMode = initVimMode(editor, statusNode);
+```
+
+<Note>
+  Key press handling with `preventDefault()` is available from version 0.0.14 onwards.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="AMD Loader" icon="loader" href="/integration/amd-loader">
+    Learn how to use monaco-vim with AMD and loader.js
+  </Card>
+  <Card title="TypeScript" icon="code" href="/integration/typescript">
+    Set up TypeScript types and definitions
+  </Card>
+</CardGroup>

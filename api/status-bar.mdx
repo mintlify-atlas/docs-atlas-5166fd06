@@ -1,0 +1,378 @@
+---
+title: "StatusBar"
+description: "Status bar class for displaying Vim mode information"
+---
+
+## Overview
+
+The `StatusBar` class (exported as `VimStatusBar` in the source) provides a visual status bar for Monaco Vim, displaying the current mode, key buffer, notifications, and command input.
+
+## Constructor
+
+```typescript
+new StatusBar(
+  node: HTMLElement,
+  editor: monaco.editor.IStandaloneCodeEditor | null,
+  sanitizer?: Sanitizer
+)
+```
+
+<ParamField path="node" type="HTMLElement" required>
+  The DOM element that will contain the status bar. The StatusBar will append child elements to this node.
+</ParamField>
+
+<ParamField path="editor" type="monaco.editor.IStandaloneCodeEditor | null" required>
+  The Monaco Editor instance. Used for focusing the editor after input operations. Can be `null` if editor focus management is not needed.
+</ParamField>
+
+<ParamField path="sanitizer" type="((node: Node) => Node) | null" default="null">
+  Optional HTML sanitizer function for user input displayed in the status bar.
+</ParamField>
+
+## Methods
+
+### setMode()
+
+Updates the status bar to display the current Vim mode.
+
+```typescript
+setMode(ev: VimModeChangeEvent): void
+```
+
+<ParamField path="ev" type="VimModeChangeEvent" required>
+  An object containing mode information.
+  
+  ```typescript
+  interface VimModeChangeEvent {
+    mode: string;        // "normal", "insert", "visual", "replace"
+    subMode?: string;    // For visual mode: "linewise", "blockwise"
+  }
+  ```
+</ParamField>
+
+**Default Display Behavior:**
+- Visual mode: `--VISUAL--`, `--VISUAL LINE--`, or `--VISUAL BLOCK--`
+- Other modes: `--{MODE}--` (e.g., `--NORMAL--`, `--INSERT--`)
+
+**Example:**
+
+```typescript
+const statusBar = new StatusBar(statusNode, editor);
+
+statusBar.setMode({ mode: 'normal' });  // Displays: --NORMAL--
+statusBar.setMode({ mode: 'visual', subMode: 'linewise' });  // Displays: --VISUAL LINE--
+```
+
+### setKeyBuffer()
+
+Displays the current key buffer (for multi-key commands).
+
+```typescript
+setKeyBuffer(key: string): void
+```
+
+<ParamField path="key" type="string" required>
+  The key sequence to display.
+</ParamField>
+
+**Example:**
+
+```typescript
+statusBar.setKeyBuffer('d');    // Shows: d
+statusBar.setKeyBuffer('dw');   // Shows: dw
+statusBar.setKeyBuffer('');     // Clears the buffer
+```
+
+### setSec()
+
+Sets the secondary status area content, typically used for Ex command input.
+
+```typescript
+setSec(
+  text: Node | string | null | undefined,
+  callback?: (value: string) => void,
+  options?: StatusBarInputOptions
+): () => void
+```
+
+<ParamField path="text" type="Node | string | null | undefined" required>
+  The content to display. Can be:
+  - A text string
+  - A DOM node (can include an `<input>` element)
+  - `null` or `undefined` to clear
+</ParamField>
+
+<ParamField path="callback" type="(value: string) => void">
+  Optional callback function invoked when the user presses Enter in an input field.
+</ParamField>
+
+<ParamField path="options" type="StatusBarInputOptions">
+  Optional configuration for input behavior. See [StatusBarInputOptions](#statusbarinputoptions).
+</ParamField>
+
+<ResponseField name="closeInput" type="() => void">
+  Returns a function that closes the input and focuses the editor.
+</ResponseField>
+
+**Example:**
+
+```typescript
+// Display Ex command input
+const input = document.createElement('span');
+input.innerHTML = ':<input type="text" />';
+
+const close = statusBar.setSec(input, (value) => {
+  console.log('Command entered:', value);
+}, {
+  selectValueOnOpen: true,
+  closeOnEnter: true
+});
+```
+
+### setText()
+
+Sets the main text content of the status bar.
+
+```typescript
+setText(text: string): void
+```
+
+<ParamField path="text" type="string" required>
+  The text to display in the mode info area.
+</ParamField>
+
+**Example:**
+
+```typescript
+statusBar.setText('--CUSTOM MODE--');
+```
+
+### toggleVisibility()
+
+Shows or hides the status bar.
+
+```typescript
+toggleVisibility(toggle: boolean): void
+```
+
+<ParamField path="toggle" type="boolean" required>
+  `true` to show the status bar, `false` to hide it.
+</ParamField>
+
+This method also:
+- Removes input listeners when hiding
+- Clears notification timeouts
+
+**Example:**
+
+```typescript
+statusBar.toggleVisibility(true);   // Show
+statusBar.toggleVisibility(false);  // Hide
+```
+
+### closeInput()
+
+Closes the current input field and returns focus to the editor.
+
+```typescript
+closeInput(): void
+```
+
+**Example:**
+
+```typescript
+statusBar.closeInput();
+```
+
+### clear()
+
+Clears all content from the status bar.
+
+```typescript
+clear(): void
+```
+
+**Example:**
+
+```typescript
+statusBar.clear();
+```
+
+### showNotification()
+
+Displays a temporary notification message that auto-dismisses after 5 seconds.
+
+```typescript
+showNotification(text: string | Node): void
+```
+
+<ParamField path="text" type="string | Node" required>
+  The notification message to display. Can be a string or DOM node.
+</ParamField>
+
+**Example:**
+
+```typescript
+statusBar.showNotification('File saved successfully');
+statusBar.showNotification('Pattern not found');
+```
+
+## Interfaces
+
+### VimModeChangeEvent
+
+```typescript
+interface VimModeChangeEvent {
+  mode: string;        // "normal", "insert", "visual", "replace"
+  subMode?: string;    // For visual mode: "linewise", "blockwise"
+}
+```
+
+### StatusBarInputOptions
+
+```typescript
+interface StatusBarInputOptions {
+  selectValueOnOpen?: boolean;
+  value?: string;
+  onKeyUp?: (event: KeyboardEvent, value: string, close: () => void) => void;
+  onKeyDown?: (event: KeyboardEvent, value: string, close: () => void) => boolean | void;
+  onKeyInput?: (event: InputEvent, value: string, close: () => void) => void;
+  onBlur?: (event: FocusEvent, close: () => void) => void;
+  closeOnBlur?: boolean;
+  closeOnEnter?: boolean;
+}
+```
+
+<ParamField path="selectValueOnOpen" type="boolean">
+  If `true`, selects all text in the input when it opens.
+</ParamField>
+
+<ParamField path="value" type="string">
+  Initial value for the input field.
+</ParamField>
+
+<ParamField path="onKeyUp" type="(event, value, close) => void">
+  Callback fired on keyup events.
+</ParamField>
+
+<ParamField path="onKeyDown" type="(event, value, close) => boolean | void">
+  Callback fired on keydown events. Return `true` to prevent default input behavior.
+</ParamField>
+
+<ParamField path="onKeyInput" type="(event, value, close) => void">
+  Callback fired on input events (when text changes).
+</ParamField>
+
+<ParamField path="onBlur" type="(event, close) => void">
+  Callback fired when the input loses focus.
+</ParamField>
+
+<ParamField path="closeOnBlur" type="boolean">
+  If `true`, automatically closes the input when it loses focus.
+</ParamField>
+
+<ParamField path="closeOnEnter" type="boolean" default="true">
+  If `true`, closes the input when Enter is pressed. Set to `false` to keep the input open.
+</ParamField>
+
+## Custom StatusBar Example
+
+You can extend the StatusBar class to create custom behavior:
+
+```typescript
+import { StatusBar } from 'monaco-vim';
+
+class CustomStatusBar extends StatusBar {
+  setMode(ev) {
+    super.setMode(ev);
+    
+    // Add custom styling based on mode
+    const node = this.node;
+    node.classList.remove('mode-normal', 'mode-insert', 'mode-visual');
+    node.classList.add(`mode-${ev.mode}`);
+  }
+  
+  showNotification(text) {
+    // Log notifications to console as well
+    console.log('[Vim Notification]', text);
+    super.showNotification(text);
+  }
+}
+
+// Use the custom status bar
+const statusBar = new CustomStatusBar(
+  document.getElementById('statusbar'),
+  editor
+);
+
+const vimMode = initVimMode(editor, null);
+vimMode.setStatusBar(statusBar);
+vimMode.attach();
+```
+
+## Ex Command Input Example
+
+```typescript
+const statusBar = new StatusBar(statusNode, editor);
+
+// Create Ex command input
+function openExCommand() {
+  const inputNode = document.createElement('span');
+  inputNode.innerHTML = ':<input type="text" style="border: none; background: transparent; color: inherit;" />';
+  
+  statusBar.setSec(inputNode, (command) => {
+    console.log('Executing command:', command);
+    // Execute the Ex command
+    executeExCommand(command);
+  }, {
+    selectValueOnOpen: false,
+    closeOnEnter: true,
+    closeOnBlur: true,
+    onKeyDown: (e, value, close) => {
+      if (e.key === 'Escape') {
+        close();
+        return true;
+      }
+    }
+  });
+}
+```
+
+## Styling
+
+The status bar creates the following structure:
+
+```html
+<div id="your-statusbar-node">
+  <span class="mode-info">--NORMAL--</span>
+  <span class="sec-info"></span>
+  <span class="vim-notification"></span>
+  <span class="key-info" style="float: right">dw</span>
+</div>
+```
+
+You can style these elements with CSS:
+
+```css
+#vim-statusbar {
+  padding: 4px 8px;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+#vim-statusbar .vim-notification {
+  margin-left: 10px;
+  color: #4ec9b0;
+}
+
+#vim-statusbar .key-info {
+  color: #ce9178;
+}
+```
+
+## See Also
+
+- [initVimMode](/api/init-vim-mode) - How to use StatusBar with initVimMode
+- [VimMode](/api/vim-mode) - VimMode events that update the status bar

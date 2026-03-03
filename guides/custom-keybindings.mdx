@@ -1,0 +1,305 @@
+---
+title: Custom Keybindings
+description: Add custom vim keybindings and commands using VimMode.Vim.mapCommand
+---
+
+## Overview
+
+monaco-vim exposes the underlying CodeMirror vim implementation, allowing you to create custom keybindings and remap existing ones. This is useful for adding editor-specific functionality or customizing the vim behavior to match your workflow.
+
+## Accessing the Vim API
+
+The vim implementation is available through the `VimMode` export:
+
+```javascript
+import { VimMode } from "monaco-vim";
+
+// Access the Vim API
+VimMode.Vim.mapCommand(/* ... */);
+VimMode.Vim.defineEx(/* ... */);
+```
+
+<Info>
+  `VimMode.Vim` is the CodeMirror Vim implementation adapted for Monaco. It provides the same API as `CodeMirror.Vim` from the original CodeMirror vim mode.
+</Info>
+
+## Using mapCommand
+
+The `mapCommand` function allows you to create custom key mappings that execute actions, motions, or operators.
+
+### Function Signature
+
+```typescript src/cm/keymap_vim.ts:6810-6816
+function mapCommand(keys, type, name, args, extra) {
+  var command = { keys: keys, type: type };
+  command[type] = name;
+  command[type + "Args"] = args;
+  for (var key in extra) command[key] = extra[key];
+  _mapCommand(command);
+}
+```
+
+### Parameters
+
+<ParamField path="keys" type="string" required>
+  The key sequence to bind (e.g., "jj", `<C-s>`, `<Leader>w`)
+</ParamField>
+
+<ParamField path="type" type="string" required>
+  The command type: "action", "motion", "operator", or "keyToKey"
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  The name of the action/motion/operator to execute
+</ParamField>
+
+<ParamField path="args" type="object">
+  Arguments to pass to the command
+</ParamField>
+
+<ParamField path="extra" type="object">
+  Additional properties like context ("normal", "insert", "visual")
+</ParamField>
+
+## Mapping Examples
+
+### Key-to-Key Mappings
+
+Remap one key sequence to another:
+
+```javascript
+import { VimMode } from "monaco-vim";
+
+// Map 'jj' to Escape in insert mode
+VimMode.Vim.mapCommand(
+  "jj",
+  "keyToKey",
+  "<Esc>",
+  {},
+  { context: "insert" }
+);
+
+// Map 'H' to beginning of line
+VimMode.Vim.mapCommand(
+  "H",
+  "keyToKey",
+  "^",
+  {},
+  { context: "normal" }
+);
+
+// Map 'L' to end of line
+VimMode.Vim.mapCommand(
+  "L",
+  "keyToKey",
+  "$",
+  {},
+  { context: "normal" }
+);
+```
+
+### Action Mappings
+
+Map keys to vim actions:
+
+```javascript
+// Map Ctrl+s to save (requires defining a save action first)
+VimMode.Vim.defineAction("save", function(cm, actionArgs) {
+  // Your save logic here
+  console.log("Saving file...");
+});
+
+VimMode.Vim.mapCommand(
+  "<C-s>",
+  "action",
+  "save",
+  {},
+  { context: "normal" }
+);
+```
+
+### Motion Mappings
+
+Create custom motions:
+
+```javascript
+// Define a custom motion
+VimMode.Vim.defineMotion("moveToNextFunction", function(cm, motionArgs) {
+  // Custom motion logic
+  var cursor = cm.getCursor();
+  // ... find next function and return position
+});
+
+// Map it to a key
+VimMode.Vim.mapCommand(
+  "]f",
+  "motion",
+  "moveToNextFunction",
+  { forward: true },
+  { context: "normal" }
+);
+```
+
+## Context-Specific Mappings
+
+You can restrict mappings to specific vim modes:
+
+<Tabs>
+  <Tab title="Normal Mode">
+    ```javascript
+    VimMode.Vim.mapCommand(
+      "<Space>",
+      "keyToKey",
+      "l",
+      {},
+      { context: "normal" }
+    );
+    ```
+  </Tab>
+  
+  <Tab title="Insert Mode">
+    ```javascript
+    VimMode.Vim.mapCommand(
+      "<C-e>",
+      "action",
+      "goLineEnd",
+      {},
+      { context: "insert" }
+    );
+    ```
+  </Tab>
+  
+  <Tab title="Visual Mode">
+    ```javascript
+    VimMode.Vim.mapCommand(
+      "s",
+      "keyToKey",
+      "c",
+      {},
+      { context: "visual" }
+    );
+    ```
+  </Tab>
+</Tabs>
+
+## Built-in Key Mappings
+
+monaco-vim includes many default key mappings. Here are some examples from the source:
+
+```javascript src/cm/keymap_vim.ts:51-79
+{ keys: "<Left>", type: "keyToKey", toKeys: "h" },
+{ keys: "<Right>", type: "keyToKey", toKeys: "l" },
+{ keys: "<Up>", type: "keyToKey", toKeys: "k" },
+{ keys: "<Down>", type: "keyToKey", toKeys: "j" },
+{ keys: "<Space>", type: "keyToKey", toKeys: "l" },
+{ keys: "<BS>", type: "keyToKey", toKeys: "h", context: "normal" },
+{ keys: "<Del>", type: "keyToKey", toKeys: "x", context: "normal" },
+{ keys: "<C-Space>", type: "keyToKey", toKeys: "W" },
+{ keys: "<C-BS>", type: "keyToKey", toKeys: "B", context: "normal" },
+{ keys: "s", type: "keyToKey", toKeys: "cl", context: "normal" },
+{ keys: "S", type: "keyToKey", toKeys: "cc", context: "normal" },
+{ keys: "<Home>", type: "keyToKey", toKeys: "0" },
+{ keys: "<End>", type: "keyToKey", toKeys: "$" },
+{ keys: "<PageUp>", type: "keyToKey", toKeys: "<C-b>" },
+{ keys: "<PageDown>", type: "keyToKey", toKeys: "<C-f>" },
+{ keys: "<CR>", type: "keyToKey", toKeys: "j^", context: "normal" },
+{ keys: "<Ins>", type: "keyToKey", toKeys: "i", context: "normal" }
+```
+
+## Special Key Notation
+
+<AccordionGroup>
+  <Accordion title="Modifier Keys">
+    - `<C-x>` - Control + x
+    - `<A-x>` or `<M-x>` - Alt/Meta + x
+    - `<S-x>` - Shift + x
+    - `<D-x>` - Command (Mac) / Windows key
+  </Accordion>
+  
+  <Accordion title="Special Keys">
+    - `<Esc>` - Escape
+    - `<CR>` - Enter/Return
+    - `<BS>` - Backspace
+    - `<Del>` - Delete
+    - `<Tab>` - Tab
+    - `<Space>` - Space
+    - `<Leader>` - Leader key (default: backslash)
+  </Accordion>
+  
+  <Accordion title="Arrow Keys">
+    - `<Left>`, `<Right>`, `<Up>`, `<Down>` - Arrow keys
+    - `<Home>`, `<End>` - Home and End
+    - `<PageUp>`, `<PageDown>` - Page Up and Down
+  </Accordion>
+</AccordionGroup>
+
+## Practical Examples
+
+### Monaco-Specific Bindings
+
+```javascript
+import { VimMode } from "monaco-vim";
+
+// Quick save with Ctrl+S
+VimMode.Vim.defineAction("saveFile", function(cm) {
+  const value = cm.editor.getValue();
+  localStorage.setItem("editorContent", value);
+  cm.openNotification("File saved!");
+});
+
+VimMode.Vim.mapCommand("<C-s>", "action", "saveFile");
+
+// Format document with <Leader>f
+VimMode.Vim.defineAction("formatDocument", function(cm) {
+  cm.triggerEditorAction("editor.action.formatDocument");
+});
+
+VimMode.Vim.mapCommand("<Leader>f", "action", "formatDocument");
+
+// Quick comment toggle with gc
+VimMode.Vim.defineAction("toggleComment", function(cm) {
+  cm.triggerEditorAction("editor.action.commentLine");
+});
+
+VimMode.Vim.mapCommand("gc", "action", "toggleComment");
+```
+
+### Insert Mode Convenience
+
+```javascript
+// Emacs-style cursor movement in insert mode
+VimMode.Vim.mapCommand("<C-a>", "action", "goLineStart", {}, { context: "insert" });
+VimMode.Vim.mapCommand("<C-e>", "action", "goLineEnd", {}, { context: "insert" });
+VimMode.Vim.mapCommand("<C-f>", "keyToKey", "<Right>", {}, { context: "insert" });
+VimMode.Vim.mapCommand("<C-b>", "keyToKey", "<Left>", {}, { context: "insert" });
+```
+
+<Warning>
+  Custom mappings are global and will affect all editor instances using monaco-vim. Define them once during application initialization.
+</Warning>
+
+## Removing Mappings
+
+To remove or override a default mapping, simply define a new mapping with the same key sequence. The new mapping will take precedence.
+
+```javascript
+// Override the default 's' behavior
+VimMode.Vim.mapCommand(
+  "s",
+  "action",
+  "myCustomAction",
+  {},
+  { context: "normal" }
+);
+```
+
+## Related Guides
+
+<CardGroup cols={2}>
+  <Card title="Ex Commands" icon="terminal" href="/guides/ex-commands">
+    Define custom Ex commands like :w and :save
+  </Card>
+  <Card title="Basic Usage" icon="circle-play" href="/guides/basic-usage">
+    Learn the fundamentals of monaco-vim
+  </Card>
+</CardGroup>

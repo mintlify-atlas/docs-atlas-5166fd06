@@ -1,0 +1,239 @@
+---
+title: FAQ
+description: Frequently asked questions about monaco-vim
+---
+
+## General Questions
+
+<Accordion title="What is monaco-vim?">
+monacos-vim brings Vim keybindings to the Monaco Editor (the code editor that powers VS Code). It allows you to use Vim's modal editing, motions, operators, and commands within Monaco Editor.
+
+The implementation is based on CodeMirror's Vim mode, adapted to work with Monaco's architecture.
+</Accordion>
+
+<Accordion title="Which Vim features are supported?">
+monacos-vim supports most common Vim features including:
+
+- **Modal editing**: Normal, Insert, Visual, and Command modes
+- **Motion commands**: `h`, `j`, `k`, `l`, `w`, `b`, `e`, `gg`, `G`, etc.
+- **Operators**: `d` (delete), `c` (change), `y` (yank), etc.
+- **Text objects**: `iw`, `aw`, `i(`, `a{`, etc.
+- **Registers**: Named registers for copy/paste
+- **Marks**: Set and jump to marks
+- **Ex commands**: `:` command mode with extensibility
+- **Search**: `/` and `?` for forward/backward search
+- **Macros**: Record and replay with `q`
+
+**Note:** This is a Vim emulation layer, not a complete Vim implementation. Some advanced features may have limitations.
+</Accordion>
+
+<Accordion title="Does monaco-vim support Neovim features?">
+No, monaco-vim is based on CodeMirror's Vim emulation, which implements classic Vim behavior. Neovim-specific features like Lua scripting, Tree-sitter, or LSP integration are not supported.
+</Accordion>
+
+<Accordion title="Can I use my vimrc configuration?">
+No, monaco-vim doesn't support loading vimrc files. However, you can programmatically configure custom keybindings and ex commands using the API. See the [examples page](/examples) for details.
+</Accordion>
+
+## Installation & Compatibility
+
+<Accordion title="Which browsers are supported?">
+monacos-vim supports the same browsers as Monaco Editor:
+
+- Chrome, Edge, Firefox, Safari (latest versions)
+- Modern mobile browsers
+
+Internet Explorer is not supported.
+</Accordion>
+
+<Accordion title="Can I use monaco-vim with CDN/script tags?">
+Not with simple script tags, but you can use AMD loading. monaco-vim requires either:
+
+1. **A bundler** (Webpack, Vite, Rollup, etc.) - Recommended
+2. **AMD loading** with Monaco's `loader.js`
+
+See the [troubleshooting page](/troubleshooting) for details on why global loading isn't possible.
+</Accordion>
+
+<Accordion title="What versions of Monaco Editor are supported?">
+monacos-vim is developed and tested against Monaco Editor 0.33.0 (as seen in package.json). It may work with other versions, but compatibility is not guaranteed.
+
+The peer dependency is set to `monaco-editor: *`, so you can try different versions, but test thoroughly.
+</Accordion>
+
+<Accordion title="Does monaco-vim work with React/Vue/Angular?">
+Yes! monaco-vim works with any framework as long as Monaco Editor is properly set up. The integration is framework-agnostic:
+
+```javascript
+// Works the same in any framework
+import { initVimMode } from "monaco-vim";
+
+// After creating your Monaco editor instance:
+const vimMode = initVimMode(editor, statusBarElement);
+```
+
+Many frameworks have Monaco Editor wrapper components - monaco-vim works with these as long as you can access the underlying editor instance.
+</Accordion>
+
+## Usage Questions
+
+<Accordion title="How do I disable Vim mode temporarily?">
+Call the `dispose()` method:
+
+```javascript
+vimMode.dispose();
+```
+
+To re-enable it, call `initVimMode()` again:
+
+```javascript
+const vimMode = initVimMode(editor, statusNode);
+```
+</Accordion>
+
+<Accordion title="Can I customize the status bar appearance?">
+Yes! The status bar is just a regular DOM element. Style it with CSS:
+
+```css
+#status {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 8px 12px;
+  font-family: 'Fira Code', monospace;
+  border-top: 1px solid #3e3e3e;
+}
+```
+
+For complete control, you can also provide a custom StatusBar class. See the [index.ts source](https://github.com/brijeshb42/monaco-vim/blob/master/src/index.ts) for the implementation details.
+</Accordion>
+
+<Accordion title="How do I add custom Ex commands?">
+Use the `VimMode.Vim.defineEx()` API:
+
+```javascript
+import { VimMode } from "monaco-vim";
+
+// Syntax: defineEx(name, shorthand, callback)
+VimMode.Vim.defineEx("write", "w", function () {
+  // Your save logic
+  saveFile(editor.getValue());
+});
+
+// Now users can type :w or :write
+```
+
+See the [CodeMirror Vim documentation](https://github.com/codemirror/CodeMirror/issues/2840#issuecomment-58125831) for more advanced customization.
+</Accordion>
+
+<Accordion title="How do I prevent specific keys from being handled by Vim mode?">
+Attach an `onKeyDown` handler **before** initializing monaco-vim and call `preventDefault()` for keys you want to handle yourself:
+
+```javascript
+editor.onKeyDown((e) => {
+  if ((e.metaKey || e.ctrlKey) && e.code === "Enter") {
+    e.preventDefault(); // monaco-vim will ignore this
+    runCode();
+  }
+});
+
+const vimMode = initVimMode(editor, statusNode);
+```
+
+This feature is available from version 0.0.14 onwards.
+</Accordion>
+
+<Accordion title="Can I have multiple editors with different Vim configurations?">
+Yes, each editor gets its own independent VimMode instance:
+
+```javascript
+const vimMode1 = initVimMode(editor1, status1);
+const vimMode2 = initVimMode(editor2, status2);
+
+// Configure them independently
+VimMode.Vim.defineEx("custom1", "c1", handler1);
+vimMode1.attach();
+```
+
+**Note:** Ex commands defined via `VimMode.Vim.defineEx()` are global and will affect all instances.
+</Accordion>
+
+## Troubleshooting
+
+<Accordion title="Why aren't my Vim commands working?">
+Common causes:
+
+1. **Vim mode not initialized**: Ensure you called `initVimMode()`
+2. **Key conflicts**: Another handler might be preventing the event
+3. **Monaco keybindings**: Monaco's built-in keybindings might conflict
+4. **Browser/OS shortcuts**: Some keys (Cmd+Q, Ctrl+W) are captured by the browser
+
+See the [troubleshooting guide](/troubleshooting) for detailed solutions.
+</Accordion>
+
+<Accordion title="Why is the status bar not showing?">
+Check these common issues:
+
+1. The status element doesn't exist in the DOM
+2. You passed `null` instead of an element to `initVimMode()`
+3. The element is hidden with CSS
+4. The element has zero height
+
+See the [troubleshooting guide](/troubleshooting) for more details.
+</Accordion>
+
+<Accordion title="Some Ex commands or search patterns don't work correctly">
+monacos-vim is a layer between CodeMirror's Vim implementation and Monaco Editor. Some advanced features that require complex input handling may have issues.
+
+If you encounter a bug:
+
+1. Check [existing issues](https://github.com/brijeshb42/monaco-vim/issues)
+2. Create a [new issue](https://github.com/brijeshb42/monaco-vim/issues/new) with a minimal reproduction
+
+Pull requests to fix these issues are very welcome!
+</Accordion>
+
+## Technical Questions
+
+<Accordion title="How does monaco-vim work internally?">
+monacos-vim is an adapter layer that:
+
+1. Takes CodeMirror's Vim keybinding implementation (`keymap_vim.ts`)
+2. Adapts it to work with Monaco Editor's API (`cm_adapter.ts`)
+3. Provides a simple initialization API (`index.ts`)
+4. Manages status bar display (`statusbar.ts`)
+
+The core Vim logic comes from CodeMirror (see `LICENSE.codemirror.txt`), while the adapter code bridges the gap between CodeMirror's architecture and Monaco's.
+</Accordion>
+
+<Accordion title="What's the relationship with CodeMirror?">
+monacos-vim uses CodeMirror's Vim mode implementation, which is one of the most mature Vim emulation layers available for web editors.
+
+CodeMirror's Vim mode is available as `VimMode.Vim` in monaco-vim. For advanced customization, refer to the [CodeMirror Vim documentation](https://github.com/codemirror/CodeMirror/issues/2840#issuecomment-58125831).
+</Accordion>
+
+<Accordion title="Can I contribute to monaco-vim?">
+Absolutely! Contributions are welcome. See the [contributing guide](/contributing) for information on:
+
+- Setting up the development environment
+- Building and testing
+- Submitting pull requests
+- Reporting issues
+</Accordion>
+
+<Accordion title="Is monaco-vim actively maintained?">
+Yes, the project is maintained by [Brijesh Bittu](https://github.com/brijeshb42) and the community. Check the [GitHub repository](https://github.com/brijeshb42/monaco-vim) for recent activity.
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Examples" icon="code" href="/examples">
+    See practical code examples
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/troubleshooting">
+    Fix common issues
+  </Card>
+  <Card title="Contributing" icon="github" href="/contributing">
+    Help improve monaco-vim
+  </Card>
+</CardGroup>

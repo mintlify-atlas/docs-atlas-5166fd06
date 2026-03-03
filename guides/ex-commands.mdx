@@ -1,0 +1,447 @@
+---
+title: Ex Commands
+description: Define custom Ex commands using VimMode.Vim.defineEx for :w, :save, and more
+---
+
+## Overview
+
+Ex commands are colon-prefixed commands in Vim (like `:w`, `:q`, `:save`). monaco-vim allows you to define custom Ex commands to integrate editor functionality with vim's command-line interface.
+
+## Defining Ex Commands
+
+### Basic Syntax
+
+Use `VimMode.Vim.defineEx` to create custom Ex commands:
+
+```javascript
+import { VimMode } from "monaco-vim";
+
+VimMode.Vim.defineEx(name, shorthand, callback);
+```
+
+### Function Signature
+
+```javascript src/cm/keymap_vim.ts:1520-1531
+defineEx: function (name, prefix, func) {
+  if (!prefix) {
+    prefix = name;
+  } else if (name.indexOf(prefix) !== 0) {
+    throw new Error(
+      '(Vim.defineEx) "' +
+      prefix +
+      '" is not a prefix of "' +
+      name +
+      '", command not registered'
+    );
+  }
+  exCommands[name] = func;
+  exCommandDispatcher.commandMap_[prefix] = {
+    name: name,
+    shorthand: prefix,
+    type: "api",
+  };
+}
+```
+
+### Parameters
+
+<ParamField path="name" type="string" required>
+  The full name of the command (e.g., "write", "quit", "save")
+</ParamField>
+
+<ParamField path="prefix" type="string" required>
+  The shorthand version of the command (e.g., "w", "q", "s"). Must be a prefix of the full name.
+</ParamField>
+
+<ParamField path="callback" type="function" required>
+  The function to execute when the command is called. Receives the CodeMirror instance and command arguments.
+</ParamField>
+
+<Warning>
+  The `prefix` parameter must be a valid prefix of `name`. For example, if `name` is "write", valid prefixes include "w", "wr", "wri", etc. Using "save" as a prefix for "write" will throw an error.
+</Warning>
+
+## Common Examples
+
+### Save Command
+
+The most common Ex command is `:w` (write) for saving files:
+
+```javascript README.md:124-128
+// VimMode.Vim.defineEx(name, shorthand, callback);
+VimMode.Vim.defineEx("write", "w", function () {
+  // your own implementation on what you want to do when :w is pressed
+  localStorage.setItem("editorvalue", editor.getValue());
+});
+```
+
+### Save with Feedback
+
+Show a notification when saving:
+
+```javascript
+import { VimMode } from "monaco-vim";
+
+VimMode.Vim.defineEx("write", "w", function (cm) {
+  const content = cm.editor.getValue();
+  
+  // Save to localStorage
+  localStorage.setItem("editorContent", content);
+  
+  // Show success notification
+  cm.openNotification("File saved successfully!");
+});
+```
+
+### Save to Server
+
+```javascript
+VimMode.Vim.defineEx("write", "w", async function (cm) {
+  const content = cm.editor.getValue();
+  
+  try {
+    await fetch("/api/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content })
+    });
+    
+    cm.openNotification("✓ Saved to server");
+  } catch (error) {
+    cm.openNotification("✗ Failed to save: " + error.message);
+  }
+});
+```
+
+## Advanced Ex Commands
+
+### Command with Arguments
+
+Ex commands can accept arguments:
+
+```javascript
+VimMode.Vim.defineEx("saveas", "sav", function (cm, params) {
+  const content = cm.editor.getValue();
+  const filename = params.args?.[0] || "untitled.txt";
+  
+  // Save with custom filename
+  localStorage.setItem(`file:${filename}`, content);
+  cm.openNotification(`Saved as ${filename}`);
+});
+```
+
+Usage: `:saveas myfile.js` or `:sav myfile.js`
+
+### Load/Open Command
+
+```javascript
+VimMode.Vim.defineEx("open", "o", function (cm, params) {
+  const filename = params.args?.[0];
+  
+  if (!filename) {
+    cm.openNotification("Error: No filename specified");
+    return;
+  }
+  
+  const content = localStorage.getItem(`file:${filename}`);
+  
+  if (content !== null) {
+    cm.editor.setValue(content);
+    cm.openNotification(`Opened ${filename}`);
+  } else {
+    cm.openNotification(`File not found: ${filename}`);
+  }
+});
+```
+
+Usage: `:open myfile.js` or `:o myfile.js`
+
+### Quit Command
+
+```javascript
+VimMode.Vim.defineEx("quit", "q", function (cm) {
+  // In a web context, you might want to confirm before closing
+  if (confirm("Close editor?")) {
+    // Hide the editor or navigate away
+    cm.editor.dispose();
+    // Or: window.close(); if in a popup
+    // Or: navigate to another page
+  }
+});
+```
+
+## Monaco-Specific Commands
+
+### Format Document
+
+```javascript
+VimMode.Vim.defineEx("format", "fmt", function (cm) {
+  cm.triggerEditorAction("editor.action.formatDocument");
+  cm.openNotification("Document formatted");
+});
+```
+
+### Find References
+
+```javascript
+VimMode.Vim.defineEx("references", "ref", function (cm) {
+  cm.triggerEditorAction("editor.action.goToReferences");
+});
+```
+
+### Change Language
+
+```javascript
+VimMode.Vim.defineEx("setlang", "sl", function (cm, params) {
+  const language = params.args?.[0] || "javascript";
+  const model = cm.editor.getModel();
+  monaco.editor.setModelLanguage(model, language);
+  cm.openNotification(`Language set to ${language}`);
+});
+```
+
+Usage: `:setlang typescript` or `:sl python`
+
+## Working with the CM Adapter
+
+The callback receives the CodeMirror adapter instance, which provides access to both vim-specific and Monaco-specific APIs:
+
+<Tabs>
+  <Tab title="Editor Access">
+    ```javascript
+    VimMode.Vim.defineEx("info", "i", function (cm) {
+      const editor = cm.editor; // Monaco editor instance
+      const lineCount = cm.lineCount(); // Vim adapter method
+      const content = editor.getValue(); // Monaco method
+      
+      cm.openNotification(
+        `Lines: ${lineCount}, Characters: ${content.length}`
+      );
+    });
+    ```
+  </Tab>
+  
+  <Tab title="Cursor Operations">
+    ```javascript
+    VimMode.Vim.defineEx("lineinfo", "li", function (cm) {
+      const cursor = cm.getCursor();
+      const line = cursor.line + 1; // Convert to 1-based
+      const col = cursor.ch + 1;
+      
+      cm.openNotification(`Line ${line}, Column ${col}`);
+    });
+    ```
+  </Tab>
+  
+  <Tab title="Text Manipulation">
+    ```javascript
+    VimMode.Vim.defineEx("uppercase", "up", function (cm) {
+      const cursor = cm.getCursor();
+      const line = cm.getLine(cursor.line);
+      const upperLine = line.toUpperCase();
+      
+      cm.replaceRange(
+        upperLine,
+        { line: cursor.line, ch: 0 },
+        { line: cursor.line, ch: line.length }
+      );
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Available CM Adapter Methods
+
+The `cm` parameter in your callback provides these useful methods:
+
+<CodeGroup>
+```javascript Editor Methods
+// Get the Monaco editor instance
+cm.editor
+
+// Trigger Monaco editor actions
+cm.triggerEditorAction("editor.action.formatDocument")
+
+// Focus the editor
+cm.focus()
+```
+
+```javascript Text Operations
+// Get content
+cm.getLine(lineNumber)        // Get specific line
+cm.getRange(start, end)       // Get text range
+cm.editor.getValue()          // Get all content
+
+// Set content
+cm.replaceRange(text, start, end)
+cm.editor.setValue(text)
+```
+
+```javascript Cursor Operations
+// Get cursor position
+const pos = cm.getCursor()    // Returns {line, ch}
+
+// Set cursor position  
+cm.setCursor(line, ch)
+cm.setCursor({line: 0, ch: 0})
+```
+
+```javascript Notifications
+// Show notification to user
+cm.openNotification("Message")
+
+// Open input dialog
+cm.openDialog(html, callback, options)
+```
+</CodeGroup>
+
+## Command Parameters
+
+Ex commands can receive various parameters:
+
+```javascript
+VimMode.Vim.defineEx("example", "ex", function (cm, params) {
+  console.log(params.args);        // Array of arguments
+  console.log(params.argString);   // Raw argument string
+  console.log(params.line);        // Line number if specified
+  console.log(params.lineEnd);     // End line for range
+});
+```
+
+### Range Commands
+
+```javascript
+VimMode.Vim.defineEx("deleterange", "dr", function (cm, params) {
+  const startLine = params.line || cm.getCursor().line;
+  const endLine = params.lineEnd || startLine;
+  
+  // Delete lines in range
+  for (let i = endLine; i >= startLine; i--) {
+    const lineLength = cm.getLine(i).length;
+    cm.replaceRange(
+      "",
+      { line: i, ch: 0 },
+      { line: i, ch: lineLength }
+    );
+  }
+  
+  cm.openNotification(`Deleted lines ${startLine + 1}-${endLine + 1}`);
+});
+```
+
+Usage: `:5,10dr` deletes lines 5-10
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always provide user feedback">
+    Use `cm.openNotification()` to inform users when commands complete, especially for async operations.
+    
+    ```javascript
+    VimMode.Vim.defineEx("save", "w", function (cm) {
+      localStorage.setItem("content", cm.editor.getValue());
+      cm.openNotification("✓ Saved"); // Good!
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Handle errors gracefully">
+    Catch errors and show meaningful messages:
+    
+    ```javascript
+    VimMode.Vim.defineEx("load", "l", function (cm, params) {
+      try {
+        const filename = params.args[0];
+        if (!filename) throw new Error("Filename required");
+        
+        const content = localStorage.getItem(filename);
+        if (!content) throw new Error("File not found");
+        
+        cm.editor.setValue(content);
+        cm.openNotification("✓ Loaded");
+      } catch (error) {
+        cm.openNotification("✗ " + error.message);
+      }
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Choose intuitive shortcuts">
+    Make shorthand prefixes match vim conventions:
+    - `:w` for write/save operations
+    - `:q` for quit/close operations  
+    - `:e` for edit/open operations
+    - `:s` for substitute/replace operations
+  </Accordion>
+  
+  <Accordion title="Document your commands">
+    Create a help command that lists available custom commands:
+    
+    ```javascript
+    VimMode.Vim.defineEx("help", "h", function (cm) {
+      const commands = [
+        ":w - Save file",
+        ":q - Quit editor", 
+        ":fmt - Format document",
+        ":sl <lang> - Set language"
+      ];
+      cm.openNotification(commands.join(" | "));
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Complete Example
+
+Here's a full example with multiple related Ex commands:
+
+```javascript
+import { VimMode } from "monaco-vim";
+import { initVimMode } from "monaco-vim";
+
+// Initialize vim mode
+const editor = monaco.editor.create(/* ... */);
+const vimMode = initVimMode(editor, statusNode);
+
+// Save command
+VimMode.Vim.defineEx("write", "w", function (cm) {
+  const content = cm.editor.getValue();
+  localStorage.setItem("currentFile", content);
+  cm.openNotification("✓ File saved");
+});
+
+// Load command
+VimMode.Vim.defineEx("edit", "e", function (cm, params) {
+  const content = localStorage.getItem("currentFile");
+  if (content) {
+    cm.editor.setValue(content);
+    cm.openNotification("✓ File loaded");
+  } else {
+    cm.openNotification("✗ No saved file found");
+  }
+});
+
+// Format command
+VimMode.Vim.defineEx("format", "fmt", function (cm) {
+  cm.triggerEditorAction("editor.action.formatDocument");
+  cm.openNotification("✓ Document formatted");
+});
+
+// Quit command
+VimMode.Vim.defineEx("quit", "q", function (cm) {
+  if (confirm("Close editor?")) {
+    cm.dispose();
+  }
+});
+```
+
+## Related Guides
+
+<CardGroup cols={2}>
+  <Card title="Custom Keybindings" icon="keyboard" href="/guides/custom-keybindings">
+    Map custom key sequences with VimMode.Vim.mapCommand
+  </Card>
+  <Card title="Basic Usage" icon="circle-play" href="/guides/basic-usage">
+    Learn the fundamentals of monaco-vim
+  </Card>
+</CardGroup>

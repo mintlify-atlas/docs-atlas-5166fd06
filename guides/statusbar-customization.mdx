@@ -1,0 +1,641 @@
+---
+title: Status Bar Customization
+description: Create custom status bar implementations to display vim mode and command information
+---
+
+## Overview
+
+monaco-vim provides a default status bar implementation, but you can create custom status bars to match your application's design and add additional functionality. This guide shows you how to implement your own status bar class.
+
+## Default Status Bar
+
+The default `StatusBar` class provides:
+- Current vim mode display (NORMAL, INSERT, VISUAL, etc.)
+- Key buffer for multi-key commands
+- Ex command input field
+- Notification system
+- Search/replace interface
+
+## Status Bar Interface
+
+A custom status bar must implement these key methods:
+
+```typescript src/statusbar.ts:31-61
+export default class VimStatusBar {
+  private readonly node: HTMLElement;
+  private readonly modeInfoNode: HTMLSpanElement;
+  private readonly secInfoNode: HTMLSpanElement;
+  private readonly notifNode: HTMLSpanElement;
+  private readonly keyInfoNode: HTMLSpanElement;
+  private readonly editor: MonacoEditor.editor.IStandaloneCodeEditor | null;
+  private readonly sanitizer: Sanitizer;
+  private input: StatusBarInput | null = null;
+  private notifTimeout?: ReturnType<typeof setTimeout>;
+
+  constructor(
+    node: HTMLElement,
+    editor: MonacoEditor.editor.IStandaloneCodeEditor | null,
+    sanitizer: Sanitizer = null,
+  ) {
+    this.node = node;
+    this.modeInfoNode = document.createElement("span");
+    this.secInfoNode = document.createElement("span");
+    this.notifNode = document.createElement("span");
+    this.notifNode.className = "vim-notification";
+    this.keyInfoNode = document.createElement("span");
+    this.keyInfoNode.setAttribute("style", "float: right");
+    this.node.appendChild(this.modeInfoNode);
+    this.node.appendChild(this.secInfoNode);
+    this.node.appendChild(this.notifNode);
+    this.node.appendChild(this.keyInfoNode);
+    this.toggleVisibility(false);
+    this.editor = editor;
+    this.sanitizer = sanitizer;
+  }
+```
+
+## Required Methods
+
+### setMode()
+
+Displays the current vim mode:
+
+```typescript src/statusbar.ts:63-76
+setMode(ev: VimModeChangeEvent) {
+  if (ev.mode === "visual") {
+    if (ev.subMode === "linewise") {
+      this.setText("--VISUAL LINE--");
+    } else if (ev.subMode === "blockwise") {
+      this.setText("--VISUAL BLOCK--");
+    } else {
+      this.setText("--VISUAL--");
+    }
+    return;
+  }
+
+  this.setText(`--${ev.mode.toUpperCase()}--`);
+}
+```
+
+The `VimModeChangeEvent` contains:
+- `mode`: "normal", "insert", "visual", or "replace"
+- `subMode`: Additional mode info ("linewise", "blockwise" for visual mode)
+
+### setKeyBuffer()
+
+Displays the current key buffer (for multi-key commands):
+
+```typescript src/statusbar.ts:78-80
+setKeyBuffer(key: string) {
+  this.keyInfoNode.textContent = key;
+}
+```
+
+### toggleVisibility()
+
+Shows or hides the status bar:
+
+```typescript src/statusbar.ts:123-137
+toggleVisibility(toggle: boolean) {
+  if (toggle) {
+    this.node.style.display = "block";
+  } else {
+    this.node.style.display = "none";
+  }
+
+  if (this.input) {
+    this.removeInputListeners();
+  }
+
+  if (this.notifTimeout) {
+    clearTimeout(this.notifTimeout);
+  }
+}
+```
+
+### setSec()
+
+Displays Ex command input or search interface:
+
+```typescript src/statusbar.ts:82-117
+setSec(
+  text: Node | string | null | undefined,
+  callback?: (value: string) => void,
+  options?: StatusBarInputOptions,
+) {
+  this.notifNode.textContent = "";
+  if (text === undefined) {
+    return this.closeInput;
+  }
+
+  this.setInnerHtml_(this.secInfoNode, text);
+  const input = this.secInfoNode.querySelector("input");
+
+  if (input) {
+    input.focus();
+    this.input = {
+      callback,
+      options,
+      node: input,
+    };
+
+    if (options) {
+      if (options.selectValueOnOpen) {
+        input.select();
+      }
+
+      if (options.value) {
+        input.value = options.value;
+      }
+    }
+
+    this.addInputListeners();
+  }
+
+  return this.closeInput;
+}
+```
+
+### showNotification()
+
+Displays temporary notifications:
+
+```typescript src/statusbar.ts:245-252
+showNotification(text: string | Node) {
+  const sp = document.createElement("span");
+  this.setInnerHtml_(sp, text);
+  this.notifNode.textContent = sp.textContent;
+  this.notifTimeout = setTimeout(() => {
+    this.notifNode.textContent = "";
+  }, 5000);
+}
+```
+
+### closeInput() and clear()
+
+Utility methods for cleanup:
+
+```typescript src/statusbar.ts:139-151
+closeInput = () => {
+  this.removeInputListeners();
+  this.input = null;
+  this.setSec("");
+
+  if (this.editor) {
+    this.editor.focus();
+  }
+};
+
+clear = () => {
+  this.setInnerHtml_(this.node, "");
+};
+```
+
+## Input Handling
+
+The status bar handles keyboard input for Ex commands and search:
+
+<CodeGroup>
+```typescript Key Down src/statusbar.ts:192-220
+inputKeyDown = (e: KeyboardEvent) => {
+  if (!this.input) {
+    return;
+  }
+  const { options, callback } = this.input;
+
+  if (
+    options &&
+    options.onKeyDown &&
+    options.onKeyDown(e, (e.target as HTMLInputElement).value, this.closeInput)
+  ) {
+    return;
+  }
+
+  if (
+    e.keyCode === 27 ||
+    (options && options.closeOnEnter !== false && e.keyCode == 13)
+  ) {
+    this.input.node.blur();
+    e.stopPropagation();
+    this.closeInput();
+  }
+
+  if (e.keyCode === 13 && callback) {
+    e.stopPropagation();
+    e.preventDefault();
+    callback((e.target as HTMLInputElement).value);
+  }
+};
+```
+
+```typescript Key Up src/statusbar.ts:153-165
+inputKeyUp = (e: KeyboardEvent) => {
+  if (!this.input) {
+    return;
+  }
+  const { options } = this.input;
+  if (options && options.onKeyUp) {
+    options.onKeyUp(
+      e,
+      (e.target as HTMLInputElement).value,
+      this.closeInput,
+    );
+  }
+};
+```
+
+```typescript Blur src/statusbar.ts:177-190
+inputBlur = (event: FocusEvent) => {
+  if (!this.input) {
+    return;
+  }
+  const { options } = this.input;
+
+  if (options?.onBlur) {
+    options.onBlur(event, this.closeInput);
+  }
+
+  if (options?.closeOnBlur) {
+    this.closeInput();
+  }
+};
+```
+</CodeGroup>
+
+## Custom Status Bar Example
+
+Here's a minimal custom status bar implementation:
+
+```typescript
+import type * as MonacoEditor from "monaco-editor";
+import { VimModeChangeEvent } from "monaco-vim";
+
+class CustomStatusBar {
+  private node: HTMLElement;
+  private editor: MonacoEditor.editor.IStandaloneCodeEditor;
+  private modeElement: HTMLElement;
+  private keyElement: HTMLElement;
+  private inputElement: HTMLInputElement;
+  
+  constructor(
+    node: HTMLElement,
+    editor: MonacoEditor.editor.IStandaloneCodeEditor
+  ) {
+    this.node = node;
+    this.editor = editor;
+    
+    // Create status bar structure
+    this.node.innerHTML = `
+      <div class="vim-status">
+        <span class="vim-mode"></span>
+        <span class="vim-keys"></span>
+        <input class="vim-input" style="display: none;" />
+      </div>
+    `;
+    
+    this.modeElement = this.node.querySelector(".vim-mode")!;
+    this.keyElement = this.node.querySelector(".vim-keys")!;
+    this.inputElement = this.node.querySelector(".vim-input")!;
+  }
+  
+  setMode(ev: VimModeChangeEvent) {
+    const modeText = ev.mode.toUpperCase();
+    const subMode = ev.subMode ? ` ${ev.subMode.toUpperCase()}` : "";
+    this.modeElement.textContent = `--${modeText}${subMode}--`;
+    
+    // Add custom styling based on mode
+    this.modeElement.className = `vim-mode mode-${ev.mode}`;
+  }
+  
+  setKeyBuffer(keys: string) {
+    this.keyElement.textContent = keys;
+  }
+  
+  toggleVisibility(visible: boolean) {
+    this.node.style.display = visible ? "block" : "none";
+  }
+  
+  setSec(text: string | Node, callback?: (value: string) => void) {
+    if (!text) {
+      this.inputElement.style.display = "none";
+      return this.closeInput;
+    }
+    
+    this.inputElement.style.display = "block";
+    this.inputElement.value = typeof text === "string" ? text : "";
+    this.inputElement.focus();
+    
+    if (callback) {
+      const handler = (e: KeyboardEvent) => {
+        if (e.key === "Enter") {
+          callback(this.inputElement.value);
+          this.closeInput();
+        } else if (e.key === "Escape") {
+          this.closeInput();
+        }
+      };
+      this.inputElement.addEventListener("keydown", handler, { once: true });
+    }
+    
+    return this.closeInput;
+  }
+  
+  closeInput = () => {
+    this.inputElement.style.display = "none";
+    this.inputElement.value = "";
+    this.editor.focus();
+  };
+  
+  clear = () => {
+    this.node.innerHTML = "";
+  };
+  
+  showNotification(text: string) {
+    // Simple notification implementation
+    const notif = document.createElement("div");
+    notif.className = "vim-notification";
+    notif.textContent = text;
+    this.node.appendChild(notif);
+    
+    setTimeout(() => notif.remove(), 3000);
+  }
+}
+```
+
+## Using a Custom Status Bar
+
+Pass your custom status bar class to `initVimMode`:
+
+```typescript src/index.ts:14-19
+export function initVimMode(
+  editor: MonacoEditor.editor.IStandaloneCodeEditor,
+  statusbarNode: HTMLElement | null = null,
+  StatusBarClass: StatusBarCtor = StatusBar,
+  sanitizer: Sanitizer = null,
+): VimAdapterInstance {
+```
+
+Example usage:
+
+```typescript
+import { initVimMode } from "monaco-vim";
+import CustomStatusBar from "./CustomStatusBar";
+
+const editor = monaco.editor.create(/* ... */);
+const statusNode = document.getElementById("status");
+
+const vimMode = initVimMode(
+  editor,
+  statusNode,
+  CustomStatusBar  // Your custom class
+);
+```
+
+## Enhanced Status Bar Example
+
+Here's a more feature-rich implementation:
+
+```typescript
+class EnhancedStatusBar {
+  private node: HTMLElement;
+  private editor: MonacoEditor.editor.IStandaloneCodeEditor;
+  
+  constructor(node: HTMLElement, editor: MonacoEditor.editor.IStandaloneCodeEditor) {
+    this.node = node;
+    this.editor = editor;
+    this.setupDOM();
+  }
+  
+  private setupDOM() {
+    this.node.innerHTML = `
+      <div class="enhanced-vim-status">
+        <div class="left-section">
+          <span class="mode-indicator"></span>
+          <span class="key-buffer"></span>
+        </div>
+        <div class="right-section">
+          <span class="cursor-position"></span>
+          <span class="file-info"></span>
+        </div>
+        <input class="command-input" />
+        <div class="notifications"></div>
+      </div>
+    `;
+    
+    // Add cursor position tracking
+    this.editor.onDidChangeCursorPosition((e) => {
+      this.updateCursorPosition(e.position);
+    });
+  }
+  
+  setMode(ev: VimModeChangeEvent) {
+    const indicator = this.node.querySelector(".mode-indicator");
+    if (!indicator) return;
+    
+    // Custom mode formatting with colors
+    const modes = {
+      normal: { text: "NORMAL", class: "mode-normal" },
+      insert: { text: "INSERT", class: "mode-insert" },
+      visual: { text: "VISUAL", class: "mode-visual" },
+      replace: { text: "REPLACE", class: "mode-replace" },
+    };
+    
+    const mode = modes[ev.mode] || { text: ev.mode.toUpperCase(), class: "" };
+    indicator.textContent = mode.text;
+    indicator.className = `mode-indicator ${mode.class}`;
+  }
+  
+  setKeyBuffer(keys: string) {
+    const buffer = this.node.querySelector(".key-buffer");
+    if (buffer) buffer.textContent = keys;
+  }
+  
+  private updateCursorPosition(position: monaco.Position) {
+    const posElement = this.node.querySelector(".cursor-position");
+    if (posElement) {
+      posElement.textContent = `${position.lineNumber}:${position.column}`;
+    }
+  }
+  
+  toggleVisibility(visible: boolean) {
+    this.node.style.display = visible ? "flex" : "none";
+  }
+  
+  setSec(text: string | Node, callback?: (value: string) => void) {
+    const input = this.node.querySelector(".command-input") as HTMLInputElement;
+    if (!input) return this.closeInput;
+    
+    if (!text) {
+      input.style.display = "none";
+      return this.closeInput;
+    }
+    
+    input.style.display = "block";
+    input.value = typeof text === "string" ? text : "";
+    input.focus();
+    
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        if (callback) callback(input.value);
+        this.closeInput();
+      } else if (e.key === "Escape") {
+        this.closeInput();
+      }
+    };
+    
+    input.addEventListener("keydown", handler, { once: true });
+    return this.closeInput;
+  }
+  
+  closeInput = () => {
+    const input = this.node.querySelector(".command-input") as HTMLInputElement;
+    if (input) {
+      input.style.display = "none";
+      input.value = "";
+    }
+    this.editor.focus();
+  };
+  
+  clear = () => {
+    this.node.innerHTML = "";
+  };
+  
+  showNotification(text: string) {
+    const container = this.node.querySelector(".notifications");
+    if (!container) return;
+    
+    const notif = document.createElement("div");
+    notif.className = "vim-notification";
+    notif.textContent = text;
+    container.appendChild(notif);
+    
+    // Fade out animation
+    setTimeout(() => {
+      notif.style.opacity = "0";
+      setTimeout(() => notif.remove(), 300);
+    }, 2700);
+  }
+}
+```
+
+## CSS Styling
+
+Style your custom status bar:
+
+```css
+.enhanced-vim-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.mode-indicator {
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-weight: bold;
+}
+
+.mode-normal {
+  background: #007acc;
+  color: white;
+}
+
+.mode-insert {
+  background: #4ec9b0;
+  color: black;
+}
+
+.mode-visual {
+  background: #c586c0;
+  color: white;
+}
+
+.mode-replace {
+  background: #ce9178;
+  color: black;
+}
+
+.key-buffer {
+  margin-left: 12px;
+  color: #858585;
+}
+
+.cursor-position {
+  color: #858585;
+}
+
+.command-input {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  padding: 4px 8px;
+  background: #1e1e1e;
+  border: none;
+  color: #d4d4d4;
+  font-family: monospace;
+}
+
+.vim-notification {
+  position: absolute;
+  bottom: 30px;
+  right: 8px;
+  padding: 8px 12px;
+  background: #007acc;
+  color: white;
+  border-radius: 3px;
+  transition: opacity 0.3s;
+}
+```
+
+## Security: HTML Sanitization
+
+The status bar accepts an optional sanitizer function to prevent XSS attacks:
+
+```typescript src/statusbar.ts:254-268
+setInnerHtml_(element: HTMLElement, htmlContents?: Node | string | null) {
+  // Clear out previous contents first.
+  while (element.childNodes.length) {
+    element.removeChild(element.childNodes[0]);
+  }
+  if (!htmlContents) {
+    return;
+  }
+  if (typeof htmlContents === "string") {
+    element.appendChild(document.createTextNode(htmlContents));
+    return;
+  }
+  const node = this.sanitizer ? this.sanitizer(htmlContents) : htmlContents;
+  element.appendChild(node);
+}
+```
+
+Provide a sanitizer when initializing:
+
+```typescript
+import DOMPurify from "dompurify";
+
+const sanitizer = (node: Node) => {
+  const clean = DOMPurify.sanitize(node.textContent || "");
+  return document.createTextNode(clean);
+};
+
+const vimMode = initVimMode(editor, statusNode, StatusBar, sanitizer);
+```
+
+## Related Guides
+
+<CardGroup cols={2}>
+  <Card title="Basic Usage" icon="circle-play" href="/guides/basic-usage">
+    Learn how to initialize and use monaco-vim
+  </Card>
+  <Card title="Ex Commands" icon="terminal" href="/guides/ex-commands">
+    Define custom Ex commands that interact with the status bar
+  </Card>
+</CardGroup>

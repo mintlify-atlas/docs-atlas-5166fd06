@@ -1,0 +1,373 @@
+---
+title: "VimMode"
+description: "VimMode adapter class for Monaco Editor"
+---
+
+## Overview
+
+The `VimMode` class (also referred to as `CMAdapter` in the source) is the core adapter that bridges CodeMirror's Vim implementation with Monaco Editor. It's returned by `initVimMode()` and provides methods to control Vim behavior and listen to Vim events.
+
+## Class Methods
+
+### attach()
+
+Activates Vim mode on the editor instance.
+
+```typescript
+attach(): void
+```
+
+<Info>
+  This method is automatically called by `initVimMode()`. You typically only need to call it manually if you've called `dispose()` and want to re-enable Vim mode.
+</Info>
+
+**Example:**
+
+```typescript
+const vimMode = initVimMode(editor);
+vimMode.attach();
+```
+
+### dispose()
+
+Deactivates Vim mode and cleans up event listeners and resources.
+
+```typescript
+dispose(): void
+```
+
+This method:
+- Dispatches a `dispose` event to all listeners
+- Removes overlay decorations
+- Detaches from the editor's keymap
+- Disposes all registered event handlers
+
+**Example:**
+
+```typescript
+const vimMode = initVimMode(editor);
+
+// Later, disable Vim mode
+vimMode.dispose();
+```
+
+### on()
+
+Registers an event listener for Vim mode events.
+
+```typescript
+on(event: string, handler: Function): void
+```
+
+<ParamField path="event" type="string" required>
+  The name of the event to listen for. See [Events](#events) section for available events.
+</ParamField>
+
+<ParamField path="handler" type="Function" required>
+  Callback function to execute when the event is triggered. The signature depends on the event type.
+</ParamField>
+
+**Example:**
+
+```typescript
+vimMode.on('vim-mode-change', (mode) => {
+  console.log('Mode changed to:', mode);
+});
+
+vimMode.on('vim-keypress', (key) => {
+  console.log('Key pressed:', key);
+});
+```
+
+### off()
+
+Removes an event listener.
+
+```typescript
+off(event: string, handler: Function): void
+```
+
+<ParamField path="event" type="string" required>
+  The name of the event to stop listening to.
+</ParamField>
+
+<ParamField path="handler" type="Function" required>
+  The same handler function that was passed to `on()`.
+</ParamField>
+
+**Example:**
+
+```typescript
+function modeChangeHandler(mode) {
+  console.log('Mode:', mode);
+}
+
+vimMode.on('vim-mode-change', modeChangeHandler);
+
+// Later, remove the listener
+vimMode.off('vim-mode-change', modeChangeHandler);
+```
+
+### setStatusBar()
+
+Sets or updates the status bar instance used by Vim mode.
+
+```typescript
+setStatusBar(statusBar: StatusBar): void
+```
+
+<ParamField path="statusBar" type="StatusBar" required>
+  A StatusBar instance to use for displaying Vim mode information.
+</ParamField>
+
+**Example:**
+
+```typescript
+import { StatusBar } from 'monaco-vim';
+
+const statusBar = new StatusBar(
+  document.getElementById('statusbar'),
+  editor
+);
+
+vimMode.setStatusBar(statusBar);
+```
+
+## Events
+
+Vim mode emits several events that you can listen to using the `on()` method.
+
+### vim-mode-change
+
+Emitted when the Vim mode changes (normal, insert, visual, etc.).
+
+**Handler Signature:**
+
+```typescript
+(mode: VimModeChangeEvent) => void
+
+interface VimModeChangeEvent {
+  mode: string;        // "normal", "insert", "visual", "replace"
+  subMode?: string;    // For visual mode: "linewise", "blockwise"
+}
+```
+
+**Example:**
+
+```typescript
+vimMode.on('vim-mode-change', (modeObj) => {
+  if (modeObj.mode === 'visual' && modeObj.subMode === 'linewise') {
+    console.log('Visual line mode activated');
+  } else {
+    console.log(`Mode: ${modeObj.mode}`);
+  }
+});
+```
+
+### vim-keypress
+
+Emitted when a key is pressed in Vim mode (useful for displaying key sequences).
+
+**Handler Signature:**
+
+```typescript
+(key: string) => void
+```
+
+**Example:**
+
+```typescript
+let keyBuffer = '';
+
+vimMode.on('vim-keypress', (key) => {
+  if (key === ':') {
+    keyBuffer = ':';
+  } else {
+    keyBuffer += key;
+  }
+  console.log('Key buffer:', keyBuffer);
+});
+```
+
+### vim-command-done
+
+Emitted when a Vim command sequence is completed.
+
+**Handler Signature:**
+
+```typescript
+(reason?: string) => void
+```
+
+**Example:**
+
+```typescript
+vimMode.on('vim-command-done', (reason) => {
+  console.log('Command completed:', reason);
+  // Clear any temporary UI state
+});
+```
+
+### dispose
+
+Emitted when the Vim mode instance is being disposed.
+
+**Handler Signature:**
+
+```typescript
+() => void
+```
+
+**Example:**
+
+```typescript
+vimMode.on('dispose', () => {
+  console.log('Vim mode disposed');
+  // Clean up any related resources
+});
+```
+
+## Static Properties
+
+### VimMode.Vim
+
+Provides access to the underlying Vim API for advanced customization.
+
+```typescript
+VimMode.Vim: {
+  defineEx(name: string, prefix: string, func: Function): void;
+  mapCommand(keys: string, type: string, name: string, args?: any, extra?: any): void;
+  map(lhs: string, rhs: string, ctx?: string): void;
+  // ... and more
+}
+```
+
+#### defineEx()
+
+Defines a custom Ex command.
+
+```typescript
+VimMode.Vim.defineEx(name: string, prefix: string, func: (cm, params) => void): void
+```
+
+<ParamField path="name" type="string" required>
+  The full name of the Ex command.
+</ParamField>
+
+<ParamField path="prefix" type="string" required>
+  The shortest unique prefix that can be used to invoke the command.
+</ParamField>
+
+<ParamField path="func" type="Function" required>
+  The function to execute when the command is invoked. Receives the CodeMirror adapter instance and command parameters.
+</ParamField>
+
+**Example:**
+
+```typescript
+import { initVimMode, VimMode } from 'monaco-vim';
+
+const vimMode = initVimMode(editor, statusNode);
+
+// Define a custom :format command
+VimMode.Vim.defineEx('format', 'for', (cm, params) => {
+  cm.editor.getAction('editor.action.formatDocument').run();
+});
+
+// Now you can use :format or :for in the editor
+```
+
+#### mapCommand()
+
+Maps a key sequence to a Vim command.
+
+```typescript
+VimMode.Vim.mapCommand(
+  keys: string,
+  type: string,
+  name: string,
+  args?: any,
+  extra?: any
+): void
+```
+
+<ParamField path="keys" type="string" required>
+  The key sequence to map.
+</ParamField>
+
+<ParamField path="type" type="string" required>
+  The command type: `"motion"`, `"operator"`, `"action"`, etc.
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  The name of the command to execute.
+</ParamField>
+
+<ParamField path="args" type="any">
+  Optional arguments to pass to the command.
+</ParamField>
+
+<ParamField path="extra" type="any">
+  Optional extra configuration.
+</ParamField>
+
+**Example:**
+
+```typescript
+// Map 'jk' to escape in insert mode
+VimMode.Vim.mapCommand('jk', 'action', 'exitInsertMode', {}, { context: 'insert' });
+```
+
+## Complete Example
+
+```typescript
+import * as monaco from 'monaco-editor';
+import { initVimMode, VimMode, StatusBar } from 'monaco-vim';
+
+const editor = monaco.editor.create(document.getElementById('editor'), {
+  value: 'function hello() {\n  console.log("Hello, world!");\n}',
+  language: 'javascript',
+  theme: 'vs-dark'
+});
+
+const statusNode = document.getElementById('statusbar');
+const vimMode = initVimMode(editor, statusNode);
+
+// Listen to mode changes
+vimMode.on('vim-mode-change', (mode) => {
+  const modeElement = document.getElementById('mode-indicator');
+  if (mode.mode === 'visual') {
+    if (mode.subMode === 'linewise') {
+      modeElement.textContent = 'VISUAL LINE';
+    } else if (mode.subMode === 'blockwise') {
+      modeElement.textContent = 'VISUAL BLOCK';
+    } else {
+      modeElement.textContent = 'VISUAL';
+    }
+  } else {
+    modeElement.textContent = mode.mode.toUpperCase();
+  }
+});
+
+// Define custom Ex command
+VimMode.Vim.defineEx('prettier', 'pret', (cm) => {
+  cm.editor.getAction('editor.action.formatDocument').run();
+});
+
+// Map jk to escape
+VimMode.Vim.defineEx('map', '', (cm, params) => {
+  if (params.args && params.args[0] === 'jk' && params.args[1] === '<Esc>') {
+    VimMode.Vim.map('jk', '<Esc>', 'insert');
+  }
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  vimMode.dispose();
+});
+```
+
+## See Also
+
+- [initVimMode](/api/init-vim-mode) - Initialization function
+- [StatusBar](/api/status-bar) - Status bar customization

@@ -1,0 +1,317 @@
+---
+title: TypeScript
+description: Use monaco-vim with TypeScript for full type safety and autocompletion
+---
+
+## Type Definitions
+
+monaco-vim includes built-in TypeScript type definitions. No additional `@types` package is needed.
+
+## Package Type Exports
+
+The package.json defines type exports for both ESM and CommonJS:
+
+```json
+{
+  "types": "./dist/index.d.cts",
+  "exports": {
+    ".": {
+      "types": {
+        "import": "./dist/index.d.mts",
+        "default": "./dist/index.d.cts"
+      },
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  }
+}
+```
+
+<Note>
+  TypeScript will automatically select the correct type definitions based on your module system (ESM or CommonJS).
+</Note>
+
+## Basic Usage
+
+Import monaco-vim in your TypeScript files:
+
+```typescript
+import * as monaco from "monaco-editor";
+import { initVimMode } from "monaco-vim";
+
+const editor = monaco.editor.create(document.getElementById("container")!, {
+  value: "console.log('Hello, TypeScript!');",
+  language: "typescript"
+});
+
+const statusNode = document.getElementById("statusbar");
+const vimMode = initVimMode(editor, statusNode);
+```
+
+## Available Type Exports
+
+monaco-vim exports the following types and functions:
+
+### Main Functions and Classes
+
+```typescript
+import { 
+  initVimMode,      // Main initialization function
+  VimMode,          // Core Vim adapter class
+  StatusBar         // Status bar implementation
+} from "monaco-vim";
+```
+
+### Type Definitions
+
+```typescript
+import type { VimAdapterInstance } from "monaco-vim";
+```
+
+## Type Signatures
+
+### initVimMode
+
+The main initialization function has the following signature:
+
+```typescript
+function initVimMode(
+  editor: MonacoEditor.editor.IStandaloneCodeEditor,
+  statusbarNode?: HTMLElement | null,
+  StatusBarClass?: StatusBarCtor,
+  sanitizer?: Sanitizer
+): VimAdapterInstance;
+```
+
+<ParamField path="editor" type="IStandaloneCodeEditor" required>
+  The Monaco editor instance to attach Vim mode to
+</ParamField>
+
+<ParamField path="statusbarNode" type="HTMLElement | null" default="null">
+  DOM element where Vim status information will be displayed
+</ParamField>
+
+<ParamField path="StatusBarClass" type="StatusBarCtor" default="StatusBar">
+  Custom status bar constructor (advanced use)
+</ParamField>
+
+<ParamField path="sanitizer" type="Sanitizer" default="null">
+  Optional HTML sanitizer function for status bar content
+</ParamField>
+
+### VimAdapterInstance
+
+The return type of `initVimMode`:
+
+```typescript
+type VimAdapterInstance = InstanceType<typeof VimMode>;
+```
+
+This type includes methods like:
+- `dispose()` - Remove Vim bindings
+- `attach()` - Attach Vim mode to the editor
+- `on(event, callback)` - Listen to Vim events
+- `setStatusBar(statusBar)` - Set the status bar instance
+
+## Complete TypeScript Example
+
+Here's a full example from the monaco-vim source (`src/demo.ts`):
+
+```typescript
+import * as monaco from "monaco-editor";
+import "monaco-editor/min/vs/editor/editor.main.css";
+import { initVimMode, VimAdapterInstance } from "monaco-vim";
+
+type DemoEditorRefs = {
+  editor: monaco.editor.IStandaloneCodeEditor;
+  vimMode: VimAdapterInstance;
+};
+
+function createEditor(editorId: string, statusId: string): DemoEditorRefs {
+  const editorNode = document.getElementById(editorId);
+  const statusNode = document.getElementById(statusId);
+
+  if (!editorNode || !statusNode) {
+    throw new Error(`Missing demo nodes for ${editorId}/${statusId}`);
+  }
+
+  const editor = monaco.editor.create(editorNode, {
+    value: `function hello() {
+  console.log("Hello world!");
+}`,
+    minimap: { enabled: false },
+    theme: "vs-dark",
+    language: "javascript",
+    fontSize: 15,
+    scrollBeyondLastLine: false,
+  });
+
+  editor.focus();
+  const vimMode = initVimMode(editor, statusNode);
+
+  return { editor, vimMode };
+}
+
+const { editor, vimMode } = createEditor("editor", "status");
+
+// Expose to window for debugging
+declare global {
+  interface Window {
+    editor: monaco.editor.IStandaloneCodeEditor;
+    vimMode: VimAdapterInstance;
+  }
+}
+
+window.editor = editor;
+window.vimMode = vimMode;
+```
+
+## TypeScript Configuration
+
+Recommended `tsconfig.json` settings for using monaco-vim:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2019",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["DOM", "ES2021"],
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "types": ["vite/client"]
+  }
+}
+```
+
+<Accordion title="Why these settings?">
+  - **target: ES2019** - Monaco Editor and monaco-vim target modern browsers
+  - **moduleResolution: Bundler** - Works with Vite, Webpack, and other bundlers
+  - **lib: DOM, ES2021** - Includes DOM types needed for editor integration
+  - **esModuleInterop: true** - Ensures compatibility with Monaco Editor's exports
+  - **strict: true** - Enable all strict type checking for better safety
+</Accordion>
+
+## Working with Vim Events
+
+Type-safe event handling:
+
+```typescript
+import { initVimMode, VimAdapterInstance } from "monaco-vim";
+
+const vimMode: VimAdapterInstance = initVimMode(editor, statusNode);
+
+vimMode.on("vim-mode-change", (mode: string) => {
+  console.log("Vim mode changed to:", mode);
+});
+
+vimMode.on("vim-keypress", (key: string) => {
+  console.log("Key pressed:", key);
+});
+
+vimMode.on("vim-command-done", () => {
+  console.log("Command completed");
+});
+
+vimMode.on("dispose", () => {
+  console.log("Vim mode disposed");
+});
+```
+
+## Advanced: Custom Status Bar
+
+If you want to implement a custom status bar with full type safety:
+
+```typescript
+import type * as MonacoEditor from "monaco-editor";
+import { initVimMode, StatusBar } from "monaco-vim";
+
+type Sanitizer = ((node: Node) => Node) | null;
+
+class CustomStatusBar extends StatusBar {
+  constructor(
+    node: HTMLElement,
+    editor: MonacoEditor.editor.IStandaloneCodeEditor,
+    sanitizer?: Sanitizer
+  ) {
+    super(node, editor, sanitizer);
+    // Your custom initialization
+  }
+
+  setMode(mode: string): void {
+    // Custom mode display logic
+    super.setMode(mode);
+  }
+}
+
+// Use your custom status bar
+const vimMode = initVimMode(
+  editor,
+  statusNode,
+  CustomStatusBar
+);
+```
+
+## Accessing VimMode Directly
+
+For advanced use cases, you can import the `VimMode` class:
+
+```typescript
+import { VimMode } from "monaco-vim";
+
+// Access underlying CodeMirror Vim API
+VimMode.Vim.defineEx("write", "w", function() {
+  // Custom :w command implementation
+  localStorage.setItem("editorvalue", editor.getValue());
+});
+
+VimMode.Vim.map("jk", "<Esc>", "insert");
+```
+
+<Note>
+  See the [Custom Keybindings](/guides/custom-keybindings) guide for more examples of working with `VimMode.Vim`.
+</Note>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Module not found: monaco-vim">
+    Ensure monaco-vim is installed and listed in your `package.json`:
+
+    ```bash
+    npm install monaco-vim monaco-editor
+    ```
+  </Accordion>
+
+  <Accordion title="Type errors with IStandaloneCodeEditor">
+    Make sure you have monaco-editor installed as a peer dependency:
+
+    ```bash
+    npm install monaco-editor
+    ```
+
+    The `IStandaloneCodeEditor` type comes from monaco-editor.
+  </Accordion>
+
+  <Accordion title="Cannot find module 'monaco-editor/esm/vs/editor/editor.api'">
+    Update your monaco-editor import:
+
+    ```typescript
+    import * as monaco from "monaco-editor";
+    ```
+
+    Or use the specific import path if needed for your setup.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Custom Keybindings" icon="keyboard" href="/guides/custom-keybindings">
+    Define custom Vim commands and mappings
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/init-vim-mode">
+    Explore the complete API documentation
+  </Card>
+</CardGroup>

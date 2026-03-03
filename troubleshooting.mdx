@@ -1,0 +1,273 @@
+---
+title: Troubleshooting
+description: Common issues and solutions for monaco-vim
+---
+
+## Installation Issues
+
+### Global Loading Not Supported
+
+<Warning>
+monacos-vim cannot be loaded as a global script tag. It must be bundled or loaded via AMD.
+</Warning>
+
+**Problem:** You're trying to include monaco-vim via a simple `<script>` tag:
+
+```html
+<!-- This will NOT work -->
+<script src="monaco-vim.js"></script>
+```
+
+**Why it fails:** monaco-vim uses internal dependencies from monaco-editor that are not exposed in the global API.
+
+**Solution:** Use one of these approaches:
+
+<Accordion title="Option 1: Use a bundler (Webpack, Vite, etc.)">
+```bash
+npm install monaco-vim
+```
+
+```javascript
+import { initVimMode } from "monaco-vim";
+```
+
+This is the recommended approach for modern applications.
+</Accordion>
+
+<Accordion title="Option 2: Use AMD with monaco-editor's loader.js">
+```html
+<script src="https://unpkg.com/monaco-editor/min/vs/loader.js"></script>
+<script>
+  require.config({
+    paths: {
+      vs: "https://unpkg.com/monaco-editor/min/vs",
+      "monaco-vim": "https://unpkg.com/monaco-vim@0.4.2/dist/monaco-vim.js",
+    },
+  });
+  
+  require(["vs/editor/editor.main", "monaco-vim"], function (a, MonacoVim) {
+    // Your code here
+  });
+</script>
+```
+</Accordion>
+
+### Monaco Editor Must Use loader.js for Global Loading
+
+**Problem:** You're loading Monaco Editor globally without using its loader system.
+
+**Solution:** Monaco Editor itself requires its `loader.js` file for global/CDN usage. Follow the AMD example above to properly load both Monaco and monaco-vim.
+
+## Runtime Issues
+
+### Status Bar Not Showing
+
+**Problem:** The Vim mode is working but the status bar doesn't display mode or key information.
+
+**Checklist:**
+
+1. Verify the status element exists in the DOM:
+```javascript
+const statusNode = document.getElementById("status");
+console.log(statusNode); // Should not be null
+```
+
+2. Ensure you passed the element to `initVimMode`:
+```javascript
+const vimMode = initVimMode(editor, statusNode);
+```
+
+3. Check that the element is visible:
+```css
+#status {
+  display: block;
+  min-height: 20px;
+  /* Add styling to make it visible */
+  background: #f0f0f0;
+  padding: 5px;
+}
+```
+
+### Key Bindings Not Working
+
+<Accordion title="Some keys are being captured by the browser or OS">
+Certain key combinations (like Cmd+Q, Ctrl+W) may be captured by the browser or operating system before monaco-vim can handle them. This is a browser limitation and cannot be overridden.
+</Accordion>
+
+<Accordion title="Keys handled by other Monaco keybindings">
+If you have other keybindings registered with Monaco Editor, they might conflict:
+
+```javascript
+// Remove conflicting keybindings BEFORE initializing vim mode
+editor.addCommand(monaco.KeyCode.Escape, () => {
+  // This will conflict with Vim's ESC
+});
+```
+
+**Solution:** Either remove the conflicting keybinding or use the `onKeyDown` approach to selectively handle keys.
+</Accordion>
+
+<Accordion title="Custom key handler preventing Vim mode">
+If you have a `preventDefault()` in your `onKeyDown` handler, monaco-vim will ignore those events:
+
+```javascript
+editor.onKeyDown((e) => {
+  e.preventDefault(); // This will prevent ALL vim keybindings
+});
+```
+
+**Solution:** Only call `preventDefault()` for specific keys you want to handle yourself:
+
+```javascript
+editor.onKeyDown((e) => {
+  if ((e.metaKey || e.ctrlKey) && e.code === "Enter") {
+    e.preventDefault(); // Only prevent this specific combination
+    runCode();
+  }
+});
+```
+</Accordion>
+
+### Mode Not Persisting Between Sessions
+
+**Problem:** Vim mode settings reset when page reloads.
+
+**Explanation:** monaco-vim doesn't persist state automatically. You need to implement this yourself:
+
+```javascript
+import { VimMode } from "monaco-vim";
+
+// Restore custom ex commands on each load
+VimMode.Vim.defineEx("write", "w", function () {
+  localStorage.setItem("editorvalue", editor.getValue());
+});
+
+// Restore editor content
+const savedContent = localStorage.getItem("editorvalue");
+if (savedContent) {
+  editor.setValue(savedContent);
+}
+```
+
+## Advanced Issues
+
+### Ex Commands or Search/Replace Not Working
+
+<Info>
+monacos-vim is a layer between CodeMirror's Vim implementation and Monaco Editor. Some advanced commands that require extra input may have issues.
+</Info>
+
+**Known limitations:**
+- Some complex Ex commands may not work as expected
+- Search and replace with special patterns might have edge cases
+- Visual block mode has some limitations due to Monaco's selection model
+
+**What to do:**
+
+1. Check if your use case is a [known issue](https://github.com/brijeshb42/monaco-vim/issues)
+2. Create a [new issue](https://github.com/brijeshb42/monaco-vim/issues/new) with:
+   - The key sequence you're trying to use
+   - Expected behavior
+   - Actual behavior
+   - Monaco Editor version
+   - monaco-vim version
+
+### TypeScript Errors
+
+**Problem:** TypeScript can't find type definitions.
+
+```typescript
+// Error: Cannot find module 'monaco-vim'
+import { initVimMode } from "monaco-vim";
+```
+
+**Solution:** Ensure monaco-vim and monaco-editor are properly installed:
+
+```bash
+npm install monaco-vim monaco-editor
+```
+
+Type definitions are included in the package since version 0.4.0.
+
+### Dispose Not Cleaning Up Properly
+
+**Problem:** After calling `vimMode.dispose()`, some keybindings still work.
+
+**Solution:** Ensure you're not re-attaching or have multiple vim mode instances:
+
+```javascript
+let vimMode = initVimMode(editor, statusNode);
+
+// Later...
+vimMode.dispose();
+vimMode = null; // Clear the reference
+
+// If you need to re-enable:
+vimMode = initVimMode(editor, statusNode);
+```
+
+## Debugging Tips
+
+### Enable Verbose Logging
+
+Access the VimMode instance to debug internal state:
+
+```javascript
+const vimMode = initVimMode(editor, statusNode);
+
+// Log the current vim state
+console.log(vimMode);
+
+// Access the underlying CodeMirror Vim implementation
+import { VimMode } from "monaco-vim";
+console.log(VimMode.Vim);
+```
+
+### Check Event Handlers
+
+Verify that vim mode events are firing:
+
+```javascript
+vimMode.on("vim-mode-change", (mode) => {
+  console.log("Mode changed to:", mode);
+});
+
+vimMode.on("vim-keypress", (key) => {
+  console.log("Key pressed:", key);
+});
+
+vimMode.on("vim-command-done", () => {
+  console.log("Command completed");
+});
+```
+
+### Verify Monaco Editor Version Compatibility
+
+monacos-vim is tested with specific Monaco Editor versions. Check compatibility:
+
+```bash
+npm list monaco-editor
+```
+
+The package is developed against Monaco Editor 0.33.0. While it may work with other versions, this is not guaranteed.
+
+## Getting Help
+
+If you're still experiencing issues:
+
+1. Search [existing issues](https://github.com/brijeshb42/monaco-vim/issues) on GitHub
+2. Check the [FAQ](/faq) for common questions
+3. Create a [new issue](https://github.com/brijeshb42/monaco-vim/issues/new) with:
+   - Minimal reproduction code
+   - Steps to reproduce
+   - Expected vs actual behavior
+   - Environment details (browser, monaco-vim version, etc.)
+
+<CardGroup cols={2}>
+  <Card title="Examples" icon="code" href="/examples">
+    See working code examples
+  </Card>
+  <Card title="Contributing" icon="github" href="/contributing">
+    Help fix issues and improve the project
+  </Card>
+</CardGroup>

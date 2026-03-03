@@ -1,0 +1,226 @@
+---
+title: AMD Loader
+description: Use monaco-vim with Monaco Editor's AMD loader system
+---
+
+## Overview
+
+If you're following the [official Monaco Editor guide](https://microsoft.github.io/monaco-editor/) and using the AMD version with `loader.js`, monaco-vim can be loaded as an AMD module.
+
+This approach is useful when you want to load Monaco Editor and monaco-vim from a CDN without using a build tool.
+
+## Complete Example
+
+Here's a complete HTML page demonstrating AMD integration:
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+  </head>
+  <body>
+    <div
+      id="container"
+      style="width:800px;height:600px;border:1px solid grey"
+    ></div>
+    <div id="status"></div>
+
+    <script src="https://unpkg.com/monaco-editor/min/vs/loader.js"></script>
+    <script>
+      require.config({
+        paths: {
+          vs: "https://unpkg.com/monaco-editor/min/vs",
+          "monaco-vim": "https://unpkg.com/monaco-vim@0.4.2/dist/monaco-vim.js",
+        },
+      });
+      require(["vs/editor/editor.main", "monaco-vim"], function (a, MonacoVim) {
+        var editor = monaco.editor.create(
+          document.getElementById("container"),
+          {
+            value: [
+              "function x() {",
+              '\tconsole.log("Hello world!");',
+              "}",
+            ].join("\n"),
+            language: "javascript",
+          }
+        );
+        var statusNode = document.getElementById("status");
+        var vimMode = MonacoVim.initVimMode(editor, statusNode);
+
+        // remove vim mode by calling
+        // vimMode.dispose();
+      });
+    </script>
+  </body>
+</html>
+```
+
+<Note>
+  This example is taken directly from the monaco-vim README (lines 51-94).
+</Note>
+
+## Step-by-Step Guide
+
+<Steps>
+  <Step title="Load the AMD loader">
+    Include Monaco Editor's `loader.js` in your HTML:
+
+    ```html
+    <script src="https://unpkg.com/monaco-editor/min/vs/loader.js"></script>
+    ```
+  </Step>
+
+  <Step title="Configure module paths">
+    Use `require.config()` to set up paths for both Monaco Editor and monaco-vim:
+
+    ```javascript
+    require.config({
+      paths: {
+        vs: "https://unpkg.com/monaco-editor/min/vs",
+        "monaco-vim": "https://unpkg.com/monaco-vim@0.4.2/dist/monaco-vim.js",
+      },
+    });
+    ```
+
+    <Warning>
+      Update the version number (`0.4.2`) to match the version you want to use. Check [npm](https://www.npmjs.com/package/monaco-vim) for the latest version.
+    </Warning>
+  </Step>
+
+  <Step title="Load modules and initialize">
+    Use `require()` to load both Monaco Editor and monaco-vim, then initialize:
+
+    ```javascript
+    require(["vs/editor/editor.main", "monaco-vim"], function (a, MonacoVim) {
+      // Create editor
+      var editor = monaco.editor.create(
+        document.getElementById("container"),
+        {
+          value: "// Your code here",
+          language: "javascript",
+        }
+      );
+
+      // Initialize Vim mode
+      var statusNode = document.getElementById("status");
+      var vimMode = MonacoVim.initVimMode(editor, statusNode);
+    });
+    ```
+  </Step>
+</Steps>
+
+## Using a Local Copy
+
+If you prefer to host monaco-vim yourself instead of using a CDN:
+
+<Steps>
+  <Step title="Download the UMD bundle">
+    Get the UMD build from the npm package:
+
+    ```bash
+    npm install monaco-vim
+    ```
+
+    The UMD bundle is located at `node_modules/monaco-vim/dist/monaco-vim.umd.js`.
+  </Step>
+
+  <Step title="Host the file">
+    Copy the file to your static assets directory, for example:
+
+    ```bash
+    cp node_modules/monaco-vim/dist/monaco-vim.umd.js public/vendor/
+    ```
+  </Step>
+
+  <Step title="Update require.config">
+    Point to your local copy in the AMD configuration:
+
+    ```javascript
+    require.config({
+      paths: {
+        vs: "https://unpkg.com/monaco-editor/min/vs",
+        "monaco-vim": "/vendor/monaco-vim.umd",
+      },
+    });
+    ```
+  </Step>
+</Steps>
+
+## Package Exports
+
+The monaco-vim package provides the following exports in its package.json:
+
+```json
+{
+  "exports": {
+    ".": {
+      "browser": "./dist/monaco-vim.umd.js",
+      "types": {
+        "import": "./dist/index.d.mts",
+        "default": "./dist/index.d.cts"
+      },
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  }
+}
+```
+
+The `browser` field points to the UMD bundle, which is what gets loaded when using AMD.
+
+## Disposing Vim Mode
+
+To remove Vim keybindings and restore normal Monaco behavior:
+
+```javascript
+vimMode.dispose();
+```
+
+This is useful if you want to toggle Vim mode on/off in your application.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="MonacoVim is undefined">
+    Make sure you're including both modules in the `require()` call:
+
+    ```javascript
+    require(["vs/editor/editor.main", "monaco-vim"], function (a, MonacoVim) {
+      // MonacoVim is now available
+    });
+    ```
+
+    The second parameter in the callback function is your monaco-vim module.
+  </Accordion>
+
+  <Accordion title="Cannot find module 'monaco-vim'">
+    Check that your `require.config()` paths are correct and that the URL is accessible. Test the URL directly in your browser:
+
+    ```
+    https://unpkg.com/monaco-vim@0.4.2/dist/monaco-vim.js
+    ```
+  </Accordion>
+
+  <Accordion title="Editor shows but Vim mode doesn't work">
+    Ensure you're calling `initVimMode()` after the editor is created:
+
+    ```javascript
+    var editor = monaco.editor.create(/* ... */);
+    var vimMode = MonacoVim.initVimMode(editor, statusNode); // After editor creation
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Webpack & Browserify" icon="cube" href="/integration/webpack-browserify">
+    Use monaco-vim with module bundlers
+  </Card>
+  <Card title="Custom Keybindings" icon="keyboard" href="/guides/custom-keybindings">
+    Add your own Vim commands and mappings
+  </Card>
+</CardGroup>

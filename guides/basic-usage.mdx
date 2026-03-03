@@ -1,0 +1,228 @@
+---
+title: Basic Usage
+description: Learn how to attach monaco-vim to your Monaco editor and handle basic vim mode operations
+---
+
+## Overview
+
+monaco-vim provides Vim keybindings for Monaco Editor through a simple initialization API. This guide covers the core usage patterns including attaching vim mode, handling events, and managing the vim mode lifecycle.
+
+## Installation
+
+<Steps>
+  <Step title="Install the package">
+    Install monaco-vim using npm:
+    
+    ```bash
+    npm install monaco-vim
+    ```
+  </Step>
+  
+  <Step title="Import the module">
+    Import the `initVimMode` function in your application:
+    
+    ```javascript
+    import { initVimMode } from "monaco-vim";
+    ```
+  </Step>
+</Steps>
+
+## Initializing Vim Mode
+
+### Basic Setup
+
+The simplest way to enable vim mode is to call `initVimMode` with your Monaco editor instance:
+
+```javascript
+import { initVimMode } from "monaco-vim";
+
+const editor = monaco.editor.create(document.getElementById("container"), {
+  value: "function x() {\n\tconsole.log('Hello world!');\n}",
+  language: "javascript"
+});
+
+const vimMode = initVimMode(editor);
+```
+
+### With Status Bar
+
+To display vim mode status and key buffer information, provide a DOM element as the second argument:
+
+```javascript
+const statusBarNode = document.getElementById("my-statusbar");
+const vimMode = initVimMode(editor, statusBarNode);
+```
+
+The status bar will show:
+- Current vim mode (NORMAL, INSERT, VISUAL, etc.)
+- Key buffer for multi-key commands
+- Ex command input when entering commands like `:w`
+
+<Info>
+  The statusbar node should be an HTML element where you want to display vim status information. The library will automatically manage its content.
+</Info>
+
+## Event Handling
+
+monaco-vim emits several events that you can listen to for tracking vim mode state:
+
+### Mode Change Events
+
+Listen to mode changes to update your UI or trigger custom behavior:
+
+```javascript src/index.ts:30-32
+vimAdapter.on("vim-mode-change", (mode) => {
+  statusBar.setMode(mode);
+});
+```
+
+The mode object contains:
+- `mode`: The current vim mode ("normal", "insert", "visual")
+- `subMode`: Additional mode information (e.g., "linewise", "blockwise" for visual mode)
+
+### Keypress Events
+
+Track individual keypresses as they're processed:
+
+```javascript src/index.ts:34-41
+vimAdapter.on("vim-keypress", (key) => {
+  if (key === ":") {
+    keyBuffer = "";
+  } else {
+    keyBuffer += key;
+  }
+  statusBar.setKeyBuffer(keyBuffer);
+});
+```
+
+### Command Completion Events
+
+Know when vim commands have finished executing:
+
+```javascript src/index.ts:43-46
+vimAdapter.on("vim-command-done", () => {
+  keyBuffer = "";
+  statusBar.setKeyBuffer(keyBuffer);
+});
+```
+
+### Disposal Events
+
+Handle cleanup when vim mode is detached:
+
+```javascript src/index.ts:48-52
+vimAdapter.on("dispose", function () {
+  statusBar.toggleVisibility(false);
+  statusBar.closeInput();
+  statusBar.clear();
+});
+```
+
+## Attaching and Detaching
+
+### Manual Attachment
+
+If you initialize vim mode without a status bar, you need to manually attach it:
+
+```javascript src/index.ts:22-25
+const vimAdapter = new VimMode(editor);
+vimAdapter.attach();
+```
+
+<Note>
+  When using `initVimMode()` with a status bar, the adapter is automatically attached at the end of initialization (see src/index.ts:56).
+</Note>
+
+### Detaching Vim Mode
+
+To remove vim bindings and restore normal Monaco editor behavior:
+
+```javascript
+vimMode.dispose();
+```
+
+This will:
+- Remove all vim keybindings
+- Trigger the "dispose" event
+- Clean up event listeners and decorations
+- Restore the editor to its normal state
+
+## Full Example
+
+Here's a complete example showing initialization with event handling:
+
+```javascript
+import * as monaco from "monaco-editor";
+import { initVimMode } from "monaco-vim";
+
+// Create the editor
+const editor = monaco.editor.create(document.getElementById("editor"), {
+  value: "console.log('Hello, Vim!');",
+  language: "javascript",
+  theme: "vs-dark"
+});
+
+// Initialize vim mode with status bar
+const statusNode = document.getElementById("status");
+const vimMode = initVimMode(editor, statusNode);
+
+// Optional: Add custom event handlers
+vimMode.on("vim-mode-change", (mode) => {
+  console.log("Vim mode changed to:", mode);
+});
+
+// Later: Remove vim mode if needed
+// vimMode.dispose();
+```
+
+## AMD/RequireJS Usage
+
+If you're using the AMD version of Monaco editor with RequireJS:
+
+```html
+<div id="container" style="width:800px;height:600px;border:1px solid grey"></div>
+<div id="status"></div>
+
+<script src="https://unpkg.com/monaco-editor/min/vs/loader.js"></script>
+<script>
+  require.config({
+    paths: {
+      vs: "https://unpkg.com/monaco-editor/min/vs",
+      "monaco-vim": "https://unpkg.com/monaco-vim@0.4.2/dist/monaco-vim.js"
+    }
+  });
+  
+  require(["vs/editor/editor.main", "monaco-vim"], function (a, MonacoVim) {
+    var editor = monaco.editor.create(
+      document.getElementById("container"),
+      {
+        value: "function x() {\n\tconsole.log('Hello world!');\n}",
+        language: "javascript"
+      }
+    );
+    
+    var statusNode = document.getElementById("status");
+    var vimMode = MonacoVim.initVimMode(editor, statusNode);
+    
+    // Remove vim mode by calling:
+    // vimMode.dispose();
+  });
+</script>
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Custom Keybindings" icon="keyboard" href="/guides/custom-keybindings">
+    Learn how to add custom vim keybindings and mappings
+  </Card>
+  <Card title="Ex Commands" icon="terminal" href="/guides/ex-commands">
+    Define custom Ex commands like :w and :q
+  </Card>
+  <Card title="Status Bar Customization" icon="bars" href="/guides/statusbar-customization">
+    Create custom status bar implementations
+  </Card>
+  <Card title="Handling Key Events" icon="hand" href="/guides/handling-key-events">
+    Intercept keys before vim mode processes them
+  </Card>
+</CardGroup>

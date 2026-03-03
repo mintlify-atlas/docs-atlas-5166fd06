@@ -1,0 +1,247 @@
+---
+title: Examples
+description: Real-world examples and common use cases for monaco-vim
+---
+
+## Live Demo
+
+Try out monaco-vim in action at our [live demo](https://editor-a5ea1.web.app/).
+
+## Basic Usage
+
+### ES6 Imports (Webpack/Browserify)
+
+The most common way to use monaco-vim is with ES6 imports in a bundled application:
+
+```javascript
+import * as monaco from "monaco-editor";
+import { initVimMode } from "monaco-vim";
+
+// Create the Monaco editor
+const editor = monaco.editor.create(document.getElementById("container"), {
+  value: 'console.log("Hello world!");',
+  language: "javascript",
+  theme: "vs-dark",
+});
+
+// Initialize Vim mode with status bar
+const statusNode = document.getElementById("status");
+const vimMode = initVimMode(editor, statusNode);
+```
+
+<Note>
+The second argument to `initVimMode` is the DOM element where you want to display the Vim status information (mode, key buffer, etc.).
+</Note>
+
+## Complete Example from Demo
+
+Here's the actual implementation from our demo application:
+
+```typescript
+import * as monaco from "monaco-editor";
+import { initVimMode, VimAdapterInstance } from "monaco-vim";
+
+const sampleCode = `var StringStream = function (string, tabSize) {
+  this.pos = this.start = 0;
+  this.string = string;
+  this.tabSize = tabSize || 8;
+  this.lastColumnPos = this.lastColumnValue = 0;
+  this.lineStart = 0;
+};
+
+StringStream.prototype = {
+  eol: function () {
+    return this.pos >= this.string.length;
+  },
+  sol: function () {
+    return this.pos == this.lineStart;
+  },
+  peek: function () {
+    return this.string.charAt(this.pos) || undefined;
+  },
+};`;
+
+function createEditor() {
+  const editorNode = document.getElementById("editor");
+  const statusNode = document.getElementById("status");
+
+  const editor = monaco.editor.create(editorNode, {
+    value: sampleCode,
+    minimap: { enabled: false },
+    theme: "vs",
+    language: "javascript",
+    fontSize: 15,
+    scrollBeyondLastLine: false,
+  });
+  
+  editor.focus();
+  const vimMode = initVimMode(editor, statusNode);
+
+  return { editor, vimMode };
+}
+
+const { editor, vimMode } = createEditor();
+```
+
+## AMD/UMD Usage
+
+<Info>
+If you're using the AMD version of Monaco Editor (via `loader.js`), use this approach instead.
+</Info>
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+  </head>
+  <body>
+    <div id="container" style="width:800px;height:600px;border:1px solid grey"></div>
+    <div id="status"></div>
+
+    <script src="https://unpkg.com/monaco-editor/min/vs/loader.js"></script>
+    <script>
+      require.config({
+        paths: {
+          vs: "https://unpkg.com/monaco-editor/min/vs",
+          "monaco-vim": "https://unpkg.com/monaco-vim@0.4.2/dist/monaco-vim.js",
+        },
+      });
+      
+      require(["vs/editor/editor.main", "monaco-vim"], function (a, MonacoVim) {
+        var editor = monaco.editor.create(
+          document.getElementById("container"),
+          {
+            value: [
+              "function x() {",
+              '\tconsole.log("Hello world!");',
+              "}",
+            ].join("\n"),
+            language: "javascript",
+          }
+        );
+        
+        var statusNode = document.getElementById("status");
+        var vimMode = MonacoVim.initVimMode(editor, statusNode);
+      });
+    </script>
+  </body>
+</html>
+```
+
+## Common Use Cases
+
+### Disposing Vim Mode
+
+To remove Vim keybindings and return to normal Monaco Editor behavior:
+
+```javascript
+vimMode.dispose();
+```
+
+<Warning>
+After calling `dispose()`, the vim mode instance cannot be reused. You'll need to call `initVimMode()` again to re-enable Vim mode.
+</Warning>
+
+### Without Status Bar
+
+You can initialize Vim mode without a status bar element:
+
+```javascript
+const vimMode = initVimMode(editor);
+// or explicitly pass null
+const vimMode = initVimMode(editor, null);
+```
+
+### Custom Ex Commands
+
+Define custom ex-mode commands like `:w` (write) for your application:
+
+```javascript
+import { VimMode } from "monaco-vim";
+
+// Define :w command to save to localStorage
+VimMode.Vim.defineEx("write", "w", function () {
+  localStorage.setItem("editorvalue", editor.getValue());
+  console.log("Saved!");
+});
+
+// Define :q command to close/hide editor
+VimMode.Vim.defineEx("quit", "q", function () {
+  if (confirm("Close editor?")) {
+    document.getElementById("container").style.display = "none";
+  }
+});
+```
+
+### Handling Custom Key Presses
+
+Prevent certain keypresses from being handled by monaco-vim:
+
+```javascript
+// Add this BEFORE initializing monaco-vim
+editor.onKeyDown((e) => {
+  // Prevent Vim mode from handling Cmd/Ctrl+Enter
+  if ((e.metaKey || e.ctrlKey) && e.code === "Enter") {
+    e.preventDefault(); // monaco-vim will ignore this event
+    // Your custom logic here
+    runCode();
+  }
+});
+
+const vimMode = initVimMode(editor, statusNode);
+```
+
+<Note>
+This feature is available from version 0.0.14 onwards. The `onKeyDown` handler must be attached before calling `initVimMode()`.
+</Note>
+
+### Multiple Editors
+
+You can have multiple editors with independent Vim modes on the same page:
+
+```javascript
+const editor1 = monaco.editor.create(document.getElementById("editor1"), {
+  value: "// Editor 1",
+  language: "javascript",
+});
+const vimMode1 = initVimMode(editor1, document.getElementById("status1"));
+
+const editor2 = monaco.editor.create(document.getElementById("editor2"), {
+  value: "// Editor 2",
+  language: "javascript",
+});
+const vimMode2 = initVimMode(editor2, document.getElementById("status2"));
+```
+
+## TypeScript Support
+
+monacos-vim includes full TypeScript definitions:
+
+```typescript
+import type * as Monaco from "monaco-editor";
+import { initVimMode, VimAdapterInstance } from "monaco-vim";
+
+type EditorRefs = {
+  editor: Monaco.editor.IStandaloneCodeEditor;
+  vimMode: VimAdapterInstance;
+};
+
+function setupEditor(): EditorRefs {
+  const editor = monaco.editor.create(/* ... */);
+  const vimMode = initVimMode(editor, statusNode);
+  return { editor, vimMode };
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Troubleshooting" icon="wrench" href="/troubleshooting">
+    Common issues and solutions
+  </Card>
+  <Card title="FAQ" icon="question" href="/faq">
+    Frequently asked questions
+  </Card>
+</CardGroup>
