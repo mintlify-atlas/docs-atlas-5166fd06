@@ -1,0 +1,77 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "Monaco Vim",
+  "projectDescription": "Vim keybindings for Monaco Editor",
+  "theme": "aspen",
+  "primaryColor": "#57A64A",
+  "lightColor": null,
+  "darkColor": null,
+  "navigation": {
+    "groups": [
+      {
+        "group": "Get Started",
+        "pages": [
+          "introduction",
+          "installation",
+          "quickstart"
+        ]
+      },
+      {
+        "group": "Guides",
+        "pages": [
+          "guides/basic-usage",
+          "guides/custom-keybindings",
+          "guides/ex-commands",
+          "guides/statusbar-customization",
+          "guides/handling-key-events"
+        ]
+      },
+      {
+        "group": "Integration",
+        "pages": [
+          "integration/webpack-browserify",
+          "integration/amd-loader",
+          "integration/typescript"
+        ]
+      },
+      {
+        "group": "API Reference",
+        "pages": [
+          "api/init-vim-mode",
+          "api/vim-mode",
+          "api/status-bar"
+        ]
+      },
+      {
+        "group": "Resources",
+        "pages": [
+          "examples",
+          "troubleshooting",
+          "faq",
+          "contributing"
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Full Vim keybinding support for Monaco Editor",
+    "Visual, insert, and normal mode support",
+    "Customizable status bar with mode indicators",
+    "Ex command support (:w, :q, etc.)",
+    "Custom keybinding definitions",
+    "TypeScript support with full type definitions"
+  ],
+  "publicApiSurface": [
+    "initVimMode(editor, statusbarNode?, StatusBarClass?, sanitizer?)",
+    "VimMode class",
+    "StatusBar class",
+    "VimMode.Vim.defineEx(name, shorthand, callback)",
+    "VimMode.Vim.mapCommand(keys, type, name, args, extra)",
+    "vimAdapter.attach()",
+    "vimAdapter.dispose()",
+    "vimAdapter.on(event, callback)",
+    "statusBar.setMode(mode)",
+    "statusBar.setKeyBuffer(key)",
+    "statusBar.toggleVisibility(toggle)"
+  ]
+}
