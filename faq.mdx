@@ -6,13 +6,13 @@ description: Frequently asked questions about monaco-vim
 ## General Questions
 
 <Accordion title="What is monaco-vim?">
-monacos-vim brings Vim keybindings to the Monaco Editor (the code editor that powers VS Code). It allows you to use Vim's modal editing, motions, operators, and commands within Monaco Editor.
+monaco-vim brings Vim keybindings to the Monaco Editor (the code editor that powers VS Code). It allows you to use Vim's modal editing, motions, operators, and commands within Monaco Editor.
 
 The implementation is based on CodeMirror's Vim mode, adapted to work with Monaco's architecture.
 </Accordion>
 
 <Accordion title="Which Vim features are supported?">
-monacos-vim supports most common Vim features including:
+monaco-vim supports most common Vim features including:
 
 - **Modal editing**: Normal, Insert, Visual, and Command modes
 - **Motion commands**: `h`, `j`, `k`, `l`, `w`, `b`, `e`, `gg`, `G`, etc.
@@ -38,7 +38,7 @@ No, monaco-vim doesn't support loading vimrc files. However, you can programmati
 ## Installation & Compatibility
 
 <Accordion title="Which browsers are supported?">
-monacos-vim supports the same browsers as Monaco Editor:
+monaco-vim supports the same browsers as Monaco Editor:
 
 - Chrome, Edge, Firefox, Safari (latest versions)
 - Modern mobile browsers
@@ -56,7 +56,7 @@ See the [troubleshooting page](/troubleshooting) for details on why global loadi
 </Accordion>
 
 <Accordion title="What versions of Monaco Editor are supported?">
-monacos-vim is developed and tested against Monaco Editor 0.33.0 (as seen in package.json). It may work with other versions, but compatibility is not guaranteed.
+monaco-vim is developed and tested against Monaco Editor 0.33.0 (as seen in package.json). It may work with other versions, but compatibility is not guaranteed.
 
 The peer dependency is set to `monaco-editor: *`, so you can try different versions, but test thoroughly.
 </Accordion>
@@ -182,7 +182,7 @@ See the [troubleshooting guide](/troubleshooting) for more details.
 </Accordion>
 
 <Accordion title="Some Ex commands or search patterns don't work correctly">
-monacos-vim is a layer between CodeMirror's Vim implementation and Monaco Editor. Some advanced features that require complex input handling may have issues.
+monaco-vim is a layer between CodeMirror's Vim implementation and Monaco Editor. Some advanced features that require complex input handling may have issues.
 
 If you encounter a bug:
 
@@ -195,7 +195,7 @@ Pull requests to fix these issues are very welcome!
 ## Technical Questions
 
 <Accordion title="How does monaco-vim work internally?">
-monacos-vim is an adapter layer that:
+monaco-vim is an adapter layer that:
 
 1. Takes CodeMirror's Vim keybinding implementation (`keymap_vim.ts`)
 2. Adapts it to work with Monaco Editor's API (`cm_adapter.ts`)
@@ -206,7 +206,7 @@ The core Vim logic comes from CodeMirror (see `LICENSE.codemirror.txt`), while t
 </Accordion>
 
 <Accordion title="What's the relationship with CodeMirror?">
-monacos-vim uses CodeMirror's Vim mode implementation, which is one of the most mature Vim emulation layers available for web editors.
+monaco-vim uses CodeMirror's Vim mode implementation, which is one of the most mature Vim emulation layers available for web editors.
 
 CodeMirror's Vim mode is available as `VimMode.Vim` in monaco-vim. For advanced customization, refer to the [CodeMirror Vim documentation](https://github.com/codemirror/CodeMirror/issues/2840#issuecomment-58125831).
 </Accordion>

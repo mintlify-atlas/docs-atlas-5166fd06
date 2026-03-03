@@ -8,7 +8,7 @@ description: Common issues and solutions for monaco-vim
 ### Global Loading Not Supported
 
 <Warning>
-monacos-vim cannot be loaded as a global script tag. It must be bundled or loaded via AMD.
+monaco-vim cannot be loaded as a global script tag. It must be bundled or loaded via AMD.
 </Warning>
 
 **Problem:** You're trying to include monaco-vim via a simple `<script>` tag:
@@ -154,7 +154,7 @@ if (savedContent) {
 ### Ex Commands or Search/Replace Not Working
 
 <Info>
-monacos-vim is a layer between CodeMirror's Vim implementation and Monaco Editor. Some advanced commands that require extra input may have issues.
+monaco-vim is a layer between CodeMirror's Vim implementation and Monaco Editor. Some advanced commands that require extra input may have issues.
 </Info>
 
 **Known limitations:**
@@ -243,7 +243,7 @@ vimMode.on("vim-command-done", () => {
 
 ### Verify Monaco Editor Version Compatibility
 
-monacos-vim is tested with specific Monaco Editor versions. Check compatibility:
+monaco-vim is tested with specific Monaco Editor versions. Check compatibility:
 
 ```bash
 npm list monaco-editor
